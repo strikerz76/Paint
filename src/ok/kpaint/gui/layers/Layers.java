@@ -41,10 +41,10 @@ public class Layers {
 		if(layers.isEmpty()) {
 			return new Rectangle(0, 0, 1, 1);
 		}
-		Pixel min = new Pixel(Integer.MAX_VALUE, Integer.MAX_VALUE);
-		Pixel max = new Pixel(Integer.MIN_VALUE, Integer.MIN_VALUE);
-		Pixel overallmin = new Pixel(Integer.MAX_VALUE, Integer.MAX_VALUE);
-		Pixel overallmax = new Pixel(Integer.MIN_VALUE, Integer.MIN_VALUE);
+		Vec2i min = new Vec2i(Integer.MAX_VALUE, Integer.MAX_VALUE);
+		Vec2i max = new Vec2i(Integer.MIN_VALUE, Integer.MIN_VALUE);
+		Vec2i overallmin = new Vec2i(Integer.MAX_VALUE, Integer.MAX_VALUE);
+		Vec2i overallmax = new Vec2i(Integer.MIN_VALUE, Integer.MIN_VALUE);
 		boolean atleastone = false;
 		for(Layer layer : layers) {
 			if(layer.shown()) {
@@ -67,7 +67,7 @@ public class Layers {
 		}
 	}
 	
-	public void draw(Pixel pixel, Brush brush) {
+	public void draw(Vec2i pixel, Brush brush) {
 		if(active == null) {
 			return;
 		}
@@ -76,8 +76,7 @@ public class Layers {
 	
 	private void centerLayer(Layer layer) {
 		Rectangle bounds = getBoundingRect();
-		System.out.println("centered around " + bounds);
-		layer.centerAround(new Pixel((int)bounds.getCenterX(), (int)bounds.getCenterY()));
+		layer.centerAround(new Vec2i((int)bounds.getCenterX(), (int)bounds.getCenterY()));
 	}
 	public void add(BufferedImage image) {
 		Layer newLayer = new Layer(image);

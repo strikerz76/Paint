@@ -13,7 +13,7 @@ public class Layer {
 	private final int id;
 
 	private BufferedImage image;
-	private int x, y;
+	private Vec2i position = new Vec2i();
 	
 	private boolean shown;
 	
@@ -28,32 +28,45 @@ public class Layer {
 		shown = true;
 	}
 	
-	public void centerAround(Pixel center) {
-		x = center.x - w()/2;
-		y = center.y - h()/2;
+	public void translate(Vec2i delta) {
+		position.x += delta.x;
+		position.y += delta.y;
+	}
+	
+	public void centerAround(Vec2i center) {
+		position.x = center.x - w()/2;
+		position.y = center.y - h()/2;
+	}
+	
+	public void stretch(Rectangle newSize) {
+		BufferedImage newImage = new BufferedImage(newSize.width, newSize.height, BufferedImage.TYPE_4BYTE_ABGR);
+		Graphics2D g = newImage.createGraphics();
+		g.drawImage(image, 0, 0, newSize.width, newSize.height, null);
+		g.dispose();
+		this.image = newImage;
+		position.x = newSize.x;
+		position.y = newSize.y;
 	}
 	
 	public void resize(Rectangle newSize, Color altColor) {
 		BufferedImage newImage = new BufferedImage(newSize.width, newSize.height, BufferedImage.TYPE_4BYTE_ABGR);
 		Graphics2D g = newImage.createGraphics();
 		g.setColor(altColor);
-		g.fillRect(0, 0, x-newSize.x, newImage.getHeight());
-		g.fillRect(0, 0, newImage.getWidth(), y-newSize.y);
-		g.fillRect(-newSize.x + image.getWidth(), 0, newImage.getWidth(), newImage.getHeight());
-		g.fillRect(0, -newSize.y + image.getHeight(), newImage.getWidth(), newImage.getHeight());
-		g.drawImage(image, -newSize.x, -newSize.y, null);
+		Vec2i deltaPos = position.subtract(new Vec2i(newSize.x, newSize.y));
+		g.fillRect(0, 0, deltaPos.x, newImage.getHeight());
+		g.fillRect(0, 0, newImage.getWidth(), deltaPos.y);
+		g.fillRect(deltaPos.x + image.getWidth(), 0, newImage.getWidth() - image.getWidth(), newImage.getHeight());
+		g.fillRect(0, deltaPos.y + image.getHeight(), newImage.getWidth(), newImage.getHeight());
+		g.drawImage(image, deltaPos.x, deltaPos.y, null);
 		g.dispose();
-//		if(selectedRectangle != null) {
-//			selectedRectangle.x -= newSize.x;
-//			selectedRectangle.y -= newSize.y;
-//		}
-//		xOffset += newSize.x*pixelSize;
-//		yOffset += newSize.y*pixelSize;
+		this.image = newImage;
+		position.x = newSize.x;
+		position.y = newSize.y;
 	}
 	
-	public void draw(Pixel pixel, Brush brush) {
+	public void draw(Vec2i pixel, Brush brush) {
 		
-		Pixel drawAt = new Pixel(pixel.x - x, pixel.y - y);
+		Vec2i drawAt = pixel.subtract(position);//new Vec2i(pixel.x - position.x, pixel.y - position.y);
 		
 //		if (brush.getMode() == BrushMode.ALL_MATCHING_COLOR) {
 //			matchColorDraw(lowerBound, upperBound, color);
@@ -66,9 +79,9 @@ public class Layer {
 //		}
 	}
 	
-	private void brush(Pixel center, Brush brush) {
-		Point lowerBound = new Point(center.x - brush.getBrushSize()/2, center.y - brush.getBrushSize()/2);
-		Point upperBound = new Point(lowerBound.x + brush.getBrushSize() - 1, lowerBound.y + brush.getBrushSize() - 1);
+	private void brush(Vec2i center, Brush brush) {
+		Point lowerBound = new Point(center.x - brush.getSize()/2, center.y - brush.getSize()/2);
+		Point upperBound = new Point(lowerBound.x + brush.getSize() - 1, lowerBound.y + brush.getSize() - 1);
 
 		lowerBound.x = Math.max(lowerBound.x, 0);
 		lowerBound.y = Math.max(lowerBound.y, 0);
@@ -76,7 +89,7 @@ public class Layer {
 		upperBound.x = Math.min(upperBound.x, image.getWidth()-1);
 		upperBound.y = Math.min(upperBound.y, image.getHeight()-1);
 		
-		int radius = brush.getBrushSize()/2;
+		int radius = brush.getSize()/2;
 		int maxdistance = radius*radius;
 		for(int i = lowerBound.x; i <= upperBound.x; i++) {
 			for(int j = lowerBound.y; j <= upperBound.y; j++) {
@@ -113,11 +126,11 @@ public class Layer {
 	}
 	
 	public int x() {
-		return x;
+		return position.x;
 	}
 	
 	public int y() {
-		return y;
+		return position.y;
 	}
 	
 	public int id() {

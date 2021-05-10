@@ -12,20 +12,19 @@ import ok.kpaint.gui.layers.*;
 
 public class ImagePanel extends JPanel implements LayersListener {
 	
-	public static final BrushMode DEFAULT_BRUSHMODE = BrushMode.BRUSH;
-	
 	private LinkedList<String> infoStrings = new LinkedList<>();
-	private int xOffset;
-	private int yOffset;
-	private Point previousMousePosition = new Point(0, 0);
+
+	private double zoom = 1;
+	private Vec2i cameraOffset = new Vec2i();
+	private Vec2i previousMousePosition = new Vec2i();
+	
 	private boolean movingCanvas;
-	private Edge resizingCanvas;
+	private boolean movingLayer;
+	private Edge resizingLayer;
 	private Rectangle targetCanvasSize = new Rectangle();
 	private HashSet<Integer> mouseButtonsPressed = new HashSet<>();
 
-	/** AKA zoom level */
-	private double pixelSize = 1;
-	private Brush brush = new Brush(1, BrushShape.SQUARE, DEFAULT_BRUSHMODE, Color.white);
+	private Brush brush = new Brush(Brush.DEFAULT_BRUSH);
 	private Layers layers;
 	
 	private Color altColor;
@@ -118,7 +117,7 @@ public class ImagePanel extends JPanel implements LayersListener {
 		}
 		@Override
 		public void setBrushSize(int size) {
-			brush.setBrushSize(size);
+			brush.setSize(size);
 			repaint();
 		}
 		@Override
@@ -152,21 +151,19 @@ public class ImagePanel extends JPanel implements LayersListener {
 		this.addMouseWheelListener(new MouseWheelListener() {
 			@Override
 			public void mouseWheelMoved(MouseWheelEvent e) {
-				Point pixelPosition = getPixelPosition(e.getPoint());
+				Vec2i pixelPosition = getPixelPosition(e.getPoint());
 				pixelPosition.x = Math.max(0, Math.min(pixelPosition.x, layers.active().w()));
 				pixelPosition.y = Math.max(0, Math.min(pixelPosition.y, layers.active().h()));
-				double oldPixelSize = pixelSize;
+				double oldPixelSize = zoom;
 				if (e.getWheelRotation() > 0) {
-					pixelSize = pixelSize * 0.9;
-					if(pixelSize < 0.01) { 
-						pixelSize = 0.01;
-					}
+					zoom = zoom * 0.9;
+					zoom = zoom < 0.01 ? 0.01 : zoom;
 				} else {
-					pixelSize = pixelSize*1.1 + 0.1;
+					zoom = zoom*1.1 + 0.1;
 				}
-				double deltaPixelSize = pixelSize - oldPixelSize;
-				xOffset = (int)(xOffset - deltaPixelSize * pixelPosition.x);
-				yOffset = (int)(yOffset - deltaPixelSize * pixelPosition.y);
+				double deltaPixelSize = zoom - oldPixelSize;
+				cameraOffset.x = (int)(cameraOffset.x - deltaPixelSize * pixelPosition.x);
+				cameraOffset.y = (int)(cameraOffset.y - deltaPixelSize * pixelPosition.y);
 				repaint();
 			}
 		});
@@ -244,19 +241,6 @@ public class ImagePanel extends JPanel implements LayersListener {
 				mouseButtonsPressed.add(e.getButton());
 				if(e.getButton() == MouseEvent.BUTTON2 || e.getButton() == MouseEvent.BUTTON3) {
 					startMovingCanvas(e.getPoint());
-//					Edge edge = Edge.OUTSIDE;
-//					if(selectedRectangle != null) {
-//						Rectangle sel = getSelectionScreenRectangle();
-//						if(sel != null) {
-//							edge = Utils.isNearEdge(e.getPoint(), sel);
-//						}
-//					}
-//					if(edge == Edge.OUTSIDE) {
-//						startMovingCanvas(e.getPoint());
-//					}
-//					else {
-//						startMovingSelection(edge);
-//					}
 				}
 				else if(brush.getMode() == BrushMode.SELECT) {
 					resetSelection();
@@ -269,7 +253,7 @@ public class ImagePanel extends JPanel implements LayersListener {
 				else {
 					draw(getPixelPosition(e.getPoint()), e.isShiftDown());
 				}
-				previousMousePosition = e.getPoint();
+				previousMousePosition = new Vec2i(e.getPoint());
 				repaint();
 			}
 
@@ -296,7 +280,7 @@ public class ImagePanel extends JPanel implements LayersListener {
 //					history.pushVersion();
 					repaint();
 				}
-				previousMousePosition = e.getPoint();
+				previousMousePosition = new Vec2i(e.getPoint());
 			}
 			@Override
 			public void mouseEntered(MouseEvent e) {
@@ -312,8 +296,8 @@ public class ImagePanel extends JPanel implements LayersListener {
 		this.addMouseMotionListener(new MouseMotionListener() {
 			@Override
 			public void mouseDragged(MouseEvent e) {
-				if (movingCanvas || resizingCanvas != null) {
-					updateCanvasMove(previousMousePosition, e.getPoint());
+				if (movingCanvas || movingLayer || resizingLayer != null) {
+					updateCanvasMove(previousMousePosition, new Vec2i(e.getPoint()));
 				}
 //				else if(movingSelection != null && movingSelection != Edge.OUTSIDE) {
 //					Point previousPos = getPixelPosition(previousMousePosition);
@@ -326,7 +310,7 @@ public class ImagePanel extends JPanel implements LayersListener {
 				else {
 					draw(getPixelPosition(e.getPoint()), e.isShiftDown());
 				}
-				previousMousePosition = e.getPoint();
+				previousMousePosition = new Vec2i(e.getPoint());
 				repaint();
 			}
 
@@ -353,103 +337,11 @@ public class ImagePanel extends JPanel implements LayersListener {
 //				}
 //				}
 				ImagePanel.this.setCursor(new Cursor(newCursorType));
-				previousMousePosition = e.getPoint();
+				previousMousePosition = new Vec2i(e.getPoint());
 				repaint();
 			}
 		});
 	}
-	
-	private void updateCanvasMove(Point previousScreenPos, Point newScreenPos) {
-		if(movingCanvas) {
-			xOffset += newScreenPos.x - previousScreenPos.x;
-			yOffset += newScreenPos.y - previousScreenPos.y;
-//			if(startedSelection != null) {
-//				startedSelection.x += newScreenPos.x - previousScreenPos.x;
-//				startedSelection.y += newScreenPos.y - previousScreenPos.y;
-//			}
-		}
-		else if(resizingCanvas != null) {
-			Point previousPos = getPixelPosition(previousScreenPos);
-			Point newPos = getPixelPosition(newScreenPos);
-			if(resizingCanvas == Edge.EAST) {
-				targetCanvasSize.width += newPos.x - previousPos.x;
-				targetCanvasSize.width = Math.max(targetCanvasSize.width, 1);
-			}
-			else if(resizingCanvas == Edge.WEST) {
-				int deltaWidth = previousPos.x - newPos.x;
-				deltaWidth = Math.max(deltaWidth, -(targetCanvasSize.width) + 1);
-				targetCanvasSize.width += deltaWidth;
-				targetCanvasSize.x -= deltaWidth;
-			}
-			else if(resizingCanvas == Edge.SOUTH) {
-				targetCanvasSize.height += newPos.y - previousPos.y;
-				targetCanvasSize.height = Math.max(targetCanvasSize.height, 1);
-			}
-			else if(resizingCanvas == Edge.NORTH) {
-				int deltaHeight = previousPos.y - newPos.y;
-				deltaHeight = Math.max(deltaHeight, -(targetCanvasSize.height) + 1);
-				targetCanvasSize.height += deltaHeight;
-				targetCanvasSize.y -= deltaHeight;
-			}
-		}
-	}
-	
-//	private void updateSelectionMove(Point previousPos, Point newPos) {
-//		if(movingSelection == Edge.INSIDE) {
-//			selectedRectangle.x += newPos.x - previousPos.x;
-//			selectedRectangle.y += newPos.y - previousPos.y;
-//		}
-//		else if(movingSelection == Edge.EAST) {
-//			if(newPos.x > selectedRectangle.x) {
-//				selectedRectangle.width = newPos.x - selectedRectangle.x;
-//			}
-//			else {
-//				selectedImage = createFlipped(selectedImage, false);
-//				movingSelection = Edge.WEST;
-//				selectedRectangle.width = selectedRectangle.x - newPos.x - 1;
-//				selectedRectangle.x = newPos.x;
-//			}
-//		}
-//		else if(movingSelection == Edge.WEST) {
-//			if(newPos.x < selectedRectangle.x + selectedRectangle.width) {
-//				selectedRectangle.width = (selectedRectangle.x + selectedRectangle.width) - newPos.x;
-//				selectedRectangle.x = newPos.x;
-//			}
-//			else {
-//				selectedImage = createFlipped(selectedImage, false);
-//				movingSelection = Edge.EAST;
-//				int newx = selectedRectangle.x + selectedRectangle.width + 1;
-//				selectedRectangle.width = newPos.x - (selectedRectangle.x + selectedRectangle.width) - 1;
-//				selectedRectangle.x = newx;
-//			}
-//		}
-//		
-//		if(movingSelection == Edge.SOUTH) {
-//			if(newPos.y > selectedRectangle.y) {
-//				selectedRectangle.height = newPos.y - selectedRectangle.y;
-//			}
-//			else {
-//				selectedImage = createFlipped(selectedImage, true);
-//				movingSelection = Edge.NORTH;
-//				selectedRectangle.height = selectedRectangle.y - newPos.y - 1;
-//				selectedRectangle.y = newPos.y;
-//			}
-//		}
-//		else if(movingSelection == Edge.NORTH) {
-//			if(newPos.y < selectedRectangle.y + selectedRectangle.height) {
-//				selectedRectangle.height = (selectedRectangle.y + selectedRectangle.height) - newPos.y;
-//				selectedRectangle.y = newPos.y;
-//			}
-//			else {
-//				selectedImage = createFlipped(selectedImage, true);
-//				movingSelection = Edge.SOUTH;
-//				int newy = selectedRectangle.y + selectedRectangle.height + 1;
-//				selectedRectangle.height = newPos.y - (selectedRectangle.y + selectedRectangle.height) - 1;
-//				selectedRectangle.y = newy;
-//			}
-//		}
-//		
-//	}
 
 	private static BufferedImage createFlipped(BufferedImage image, boolean northsouth) {
 		AffineTransform at = new AffineTransform();
@@ -478,38 +370,71 @@ public class ImagePanel extends JPanel implements LayersListener {
 		return newImage;
 	}
 	
-	private void startMovingSelection(Edge edge) {
-//		movingSelection = edge;
-	}
-	private void finishMovingSelection() {
-//		movingSelection = null;
-	}
-	
 	private void startMovingCanvas(Point mousePosition) {
-
 		Rectangle canvas = getCanvasScreenRectangle();
 		Edge edge = Utils.isNearEdge(mousePosition, canvas);
-		if(edge == Edge.INSIDE || edge == Edge.OUTSIDE) {
+		if(edge == Edge.OUTSIDE) {
 			movingCanvas = true;
+			ImagePanel.this.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+		}
+		else if(edge == Edge.INSIDE) {
+			movingLayer = true;
+			ImagePanel.this.setCursor(Cursor.getPredefinedCursor(Cursor.MOVE_CURSOR));
 		}
 		else {
 			targetCanvasSize.x = layers.active().x();
 			targetCanvasSize.y = layers.active().y();
 			targetCanvasSize.width = layers.active().w();
 			targetCanvasSize.height = layers.active().h();
-			resizingCanvas = edge;
+			resizingLayer = edge;
+		}
+	}
+	
+	private void updateCanvasMove(Vec2i previousMouse, Vec2i newMouse) {
+		Vec2i previousPixel = getPixelPosition(previousMouse);
+		Vec2i newPixel = getPixelPosition(newMouse);
+		Vec2i deltaPixel = newPixel.subtract(previousPixel);
+		if(movingCanvas) {
+			cameraOffset.x += newMouse.x - previousMouse.x;
+			cameraOffset.y += newMouse.y - previousMouse.y;
+		}
+		else if(movingLayer) {
+			layers.active().translate(deltaPixel);
+		}
+		else if(resizingLayer != null) {
+			if(resizingLayer == Edge.EAST) {
+				targetCanvasSize.width += newPixel.x - previousPixel.x;
+				targetCanvasSize.width = Math.max(targetCanvasSize.width, 1);
+			}
+			else if(resizingLayer == Edge.WEST) {
+				int deltaWidth = previousPixel.x - newPixel.x;
+				deltaWidth = Math.max(deltaWidth, -(targetCanvasSize.width) + 1);
+				targetCanvasSize.width += deltaWidth;
+				targetCanvasSize.x -= deltaWidth;
+			}
+			else if(resizingLayer == Edge.SOUTH) {
+				targetCanvasSize.height += newPixel.y - previousPixel.y;
+				targetCanvasSize.height = Math.max(targetCanvasSize.height, 1);
+			}
+			else if(resizingLayer == Edge.NORTH) {
+				int deltaHeight = previousPixel.y - newPixel.y;
+				deltaHeight = Math.max(deltaHeight, -(targetCanvasSize.height) + 1);
+				targetCanvasSize.height += deltaHeight;
+				targetCanvasSize.y -= deltaHeight;
+			}
 		}
 	}
 	
 	private void finishMovingCanvas() {
 		movingCanvas = false;
-		if(resizingCanvas != null) {
+		movingLayer = false;
+		if(resizingLayer != null) {
 			layers.active().resize(targetCanvasSize, altColor);
 //			resizeCanvas(targetCanvasSize);
 //			history.pushVersion();
 			repaint();
 		}
-		resizingCanvas = null;
+		resizingLayer = null;
 	}
 	
 	public void setGUIInterface(GUIInterface guiInterface) {
@@ -519,7 +444,7 @@ public class ImagePanel extends JPanel implements LayersListener {
 		this.controllerInterface = controllerInterface;
 	}
 	
-	public void colorPicker(Point pixel, boolean shiftDown) {
+	public void colorPicker(Vec2i pixel, boolean shiftDown) {
 		Color selected = new Color(getCurrentImage().getRGB(pixel.x, pixel.y), true);
 		if(shiftDown) {
 			ipInterface.setAltColor(selected);
@@ -529,8 +454,8 @@ public class ImagePanel extends JPanel implements LayersListener {
 		}
 		repaint();
 	}
-	public void draw(Point currentPixel, boolean shiftDown) {
-		Point previousPixel = getPixelPosition(previousMousePosition);
+	public void draw(Vec2i currentPixel, boolean shiftDown) {
+		Vec2i previousPixel = getPixelPosition(previousMousePosition);
 		int deltax = currentPixel.x - previousPixel.x;
 		int deltay = currentPixel.y - previousPixel.y;
 		if(Math.abs(deltax) <= 1 && Math.abs(deltay) <= 1) {
@@ -539,57 +464,31 @@ public class ImagePanel extends JPanel implements LayersListener {
 		}
 		if(Math.abs(deltax) > Math.abs(deltay)) {
 			if(currentPixel.x < previousPixel.x) {
-				Point temp = currentPixel;
+				Vec2i temp = currentPixel;
 				currentPixel = previousPixel;
 				previousPixel = temp;
 			}
 			for(int x = previousPixel.x; x <= currentPixel.x; x++) {
 				double ratio = (double)(x - previousPixel.x) / (currentPixel.x - previousPixel.x);
 				int yy = (int) (previousPixel.y + (currentPixel.y - previousPixel.y) * ratio);
-				drawOnPixel(new Point(x, yy), shiftDown);
+				drawOnPixel(new Vec2i(x, yy), shiftDown);
 			}
 		}
 		else {
 			if(currentPixel.y < previousPixel.y) {
-				Point temp = currentPixel;
+				Vec2i temp = currentPixel;
 				currentPixel = previousPixel;
 				previousPixel = temp;
 			}
 			for(int y = previousPixel.y; y <= currentPixel.y; y++) {
 				double ratio = (double)(y - previousPixel.y) / (currentPixel.y - previousPixel.y);
 				int xx = (int)(previousPixel.x + (currentPixel.x - previousPixel.x) * ratio);
-				drawOnPixel(new Point(xx, y), shiftDown);
+				drawOnPixel(new Vec2i(xx, y), shiftDown);
 			}
 		}
 	}
-	public void drawOnPixel(Point pixel, boolean shiftDown) {
-		if(!DriverKPaint.NEW_VERSION) {
-//			history.modified();
-			Color setTo = brush.getColor();
-			if(shiftDown) {
-				setTo = altColor;
-			}
-			Point lowerBound = new Point(pixel.x - brush.getBrushSize()/2, pixel.y - brush.getBrushSize()/2);
-			Point upperBound = new Point(lowerBound.x + brush.getBrushSize() - 1, lowerBound.y + brush.getBrushSize() - 1);
-			lowerBound.x = Math.max(lowerBound.x, 0);
-			lowerBound.y = Math.max(lowerBound.y, 0);
-			
-//			upperBound.x = Math.min(upperBound.x, history.getCurrent().getWidth()-1);
-//			upperBound.y = Math.min(upperBound.y, history.getCurrent().getHeight()-1);
-			
-			if (brush.getMode() == BrushMode.ALL_MATCHING_COLOR) {
-				matchColorDraw(lowerBound, upperBound, setTo);
-			} 
-			else if (brush.getMode() == BrushMode.FILL) {
-				fill(lowerBound, upperBound, setTo);
-			}
-			else if (brush.getMode() == BrushMode.BRUSH) {
-				brush(lowerBound, upperBound, brush.getShape(), setTo);
-			}
-		}
-		else {
-			layers.draw(new Pixel(pixel), brush);
-		}
+	public void drawOnPixel(Vec2i pixel, boolean shiftDown) {
+		layers.draw(pixel, brush);
 		repaint();
 	}
 	
@@ -660,10 +559,10 @@ public class ImagePanel extends JPanel implements LayersListener {
 	
 	private Rectangle getCanvasScreenRectangle() {
 		return new Rectangle(
-				(int)(xOffset + layers.active().x()*pixelSize), 
-				(int)(yOffset + layers.active().y() * pixelSize), 
-				(int)(layers.active().w()*pixelSize), 
-				(int)(layers.active().h()*pixelSize));
+				(int)(cameraOffset.x + layers.active().x()*zoom), 
+				(int)(cameraOffset.y + layers.active().y() * zoom), 
+				(int)(layers.active().w()*zoom), 
+				(int)(layers.active().h()*zoom));
 		
 //		return new Rectangle(xOffset, yOffset, (int) (getCurrentImage().getWidth()*pixelSize), (int) (getCurrentImage().getHeight()*pixelSize));
 	}
@@ -713,14 +612,17 @@ public class ImagePanel extends JPanel implements LayersListener {
 //		selectedRectangle = null;
 	}
 	
-	public Point getPixelPosition(Point screenPos) {
-		Point pixel = new Point();
-		pixel.x = (int) ((screenPos.x - xOffset)/pixelSize);
-		pixel.y = (int) ((screenPos.y - yOffset)/pixelSize);
-		if(screenPos.x - xOffset < 0) {
+	public Vec2i getPixelPosition(Point screenPos) {
+		return getPixelPosition(new Vec2i(screenPos));
+	}
+	public Vec2i getPixelPosition(Vec2i screenPos) {
+		Vec2i pixel = new Vec2i();
+		pixel.x = (int) ((screenPos.x - cameraOffset.x)/zoom);
+		pixel.y = (int) ((screenPos.y - cameraOffset.y)/zoom);
+		if(screenPos.x - cameraOffset.x < 0) {
 			pixel.x -= 1;
 		}
-		if(screenPos.y - yOffset < 0) {
+		if(screenPos.y - cameraOffset.y < 0) {
 			pixel.y -= 1;
 		}
 		return pixel;
@@ -740,18 +642,18 @@ public class ImagePanel extends JPanel implements LayersListener {
 		
 		double xfit = 1.0*getWidth()/bounds.width;
 		double yfit = 1.0*getHeight()/bounds.height;
-		pixelSize = Math.min(xfit, yfit) * 0.95;
-		xOffset = (int) (getWidth()/2 - pixelSize * bounds.width/2 - pixelSize*bounds.x);
-		yOffset = (int) (getHeight()/2 - pixelSize * bounds.height/2 - pixelSize*bounds.y);
+		zoom = Math.min(xfit, yfit) * 0.95;
+		cameraOffset.x = (int) (getWidth()/2 - zoom * bounds.width/2 - zoom*bounds.x);
+		cameraOffset.y = (int) (getHeight()/2 - zoom * bounds.height/2 - zoom*bounds.y);
 		repaint();
 	}
 	
-	private LinkedList<Pixel> getNeighbors(Pixel pixel) {
-		LinkedList<Pixel> neighbors = new LinkedList<>();
-		neighbors.add(new Pixel(pixel.x - 1, pixel.y));
-		neighbors.add(new Pixel(pixel.x + 1, pixel.y));
-		neighbors.add(new Pixel(pixel.x, pixel.y - 1));
-		neighbors.add(new Pixel(pixel.x, pixel.y + 1));
+	private LinkedList<Vec2i> getNeighbors(Vec2i pixel) {
+		LinkedList<Vec2i> neighbors = new LinkedList<>();
+		neighbors.add(new Vec2i(pixel.x - 1, pixel.y));
+		neighbors.add(new Vec2i(pixel.x + 1, pixel.y));
+		neighbors.add(new Vec2i(pixel.x, pixel.y - 1));
+		neighbors.add(new Vec2i(pixel.x, pixel.y + 1));
 		return neighbors;
 	}
 	
@@ -827,7 +729,7 @@ public class ImagePanel extends JPanel implements LayersListener {
 	}
 	
 	public Point pixelPositionToDrawingPosition(Point pixel) {
-		Point drawingPosition = new Point((int)(pixel.x * pixelSize), (int)(pixel.y * pixelSize));
+		Point drawingPosition = new Point((int)(pixel.x * zoom), (int)(pixel.y * zoom));
 		return drawingPosition;
 	}
 
@@ -838,32 +740,32 @@ public class ImagePanel extends JPanel implements LayersListener {
 		g.fillRect(0, 0, getWidth(), getHeight());
 		
 		g.setColor(Color.white);
-		g.drawLine(xOffset, 0, xOffset, getHeight());
-		g.drawString("0", xOffset + 2, getHeight() - 2);
-		g.drawLine(0, yOffset, getWidth(), yOffset);
-		g.drawString("0", getWidth() - 10, yOffset - 2);
+		g.drawLine(cameraOffset.x, 0, cameraOffset.x, getHeight());
+		g.drawString("0", cameraOffset.x + 2, getHeight() - 2);
+		g.drawLine(0, cameraOffset.y, getWidth(), cameraOffset.y);
+		g.drawString("0", getWidth() - 10, cameraOffset.y - 2);
 		
 		Graphics2D g2d = (Graphics2D)g;
 		
 		int strokeSize = 2;
 		g2d.setStroke(new BasicStroke(strokeSize));
 		
-		g.translate(xOffset, yOffset);
+		g.translate(cameraOffset.x, cameraOffset.y);
 
 		if(DriverKPaint.NEW_VERSION) {
 			Rectangle bounds = layers.getBoundingRect();
 			Rectangle scaledBounds = new Rectangle(
-					(int)(bounds.x*pixelSize), 
-					(int)(bounds.y*pixelSize), 
-					(int)(bounds.width*pixelSize),
-					(int)(bounds.height*pixelSize));
+					(int)(bounds.x*zoom), 
+					(int)(bounds.y*zoom), 
+					(int)(bounds.width*zoom),
+					(int)(bounds.height*zoom));
 			g.drawImage(layers.compose(), scaledBounds.x, scaledBounds.y, scaledBounds.width, scaledBounds.height, null);
 			for(Layer layer : layers.getLayers()) {
 				if(layer.shown()) {
-					int x = (int) (pixelSize*layer.x());
-					int y = (int) (pixelSize*layer.y());
-					int w = (int) (pixelSize*layer.w());
-					int h = (int) (pixelSize*layer.h());
+					int x = (int) (zoom*layer.x());
+					int y = (int) (zoom*layer.y());
+					int w = (int) (zoom*layer.w());
+					int h = (int) (zoom*layer.h());
 					g.setColor(Color.white);
 					g.drawRect(x-1, y-1, w+1, h+1);
 				}
@@ -903,9 +805,9 @@ public class ImagePanel extends JPanel implements LayersListener {
 		
 		g2d.setStroke(new BasicStroke(strokeSize));
 		
-		if(resizingCanvas != null) {
+		if(resizingLayer != null) {
 			g.setColor(Color.red);
-			g.drawRect((int) (targetCanvasSize.x*pixelSize), (int) (targetCanvasSize.y*pixelSize), (int) (targetCanvasSize.width*pixelSize), (int) (targetCanvasSize.height*pixelSize));
+			g.drawRect((int) (targetCanvasSize.x*zoom), (int) (targetCanvasSize.y*zoom), (int) (targetCanvasSize.width*zoom), (int) (targetCanvasSize.height*zoom));
 		}
 
 //		if(selectedImage != null) {
@@ -917,39 +819,39 @@ public class ImagePanel extends JPanel implements LayersListener {
 //			g.setColor(Color.red);
 //			g.drawRect((int) (selectedRectangle.x*pixelSize), (int) (selectedRectangle.y*pixelSize), (int) ((selectedRectangle.width+1)*pixelSize)-1, (int) ((selectedRectangle.height+1)*pixelSize)-1);
 //		}
-		int indicatorBrushSize = brush.getBrushSize();
+		int indicatorBrushSize = brush.getSize();
 		if(brush.getMode() == BrushMode.SELECT || brush.getMode() == BrushMode.COLOR_PICKER) {
 			indicatorBrushSize = 1;
 		}
 		if(previousMousePosition != null && (brush.getMode() == BrushMode.BRUSH || brush.getMode() == BrushMode.FILL || brush.getMode() == BrushMode.ALL_MATCHING_COLOR || brush.getMode() == BrushMode.COLOR_PICKER || brush.getMode() == BrushMode.SELECT)) {
-			Point pixelPosition = getPixelPosition(previousMousePosition);
-			int minx = (int) ((pixelPosition.x - indicatorBrushSize/2) * pixelSize);
-			int miny = (int) ((pixelPosition.y - indicatorBrushSize/2) * pixelSize);
-			int maxx = (int) ((pixelPosition.x - indicatorBrushSize/2 + indicatorBrushSize) * pixelSize) - 1;
-			int maxy = (int) ((pixelPosition.y - indicatorBrushSize/2 + indicatorBrushSize) * pixelSize) - 1;
+			Vec2i pixelPosition = getPixelPosition(previousMousePosition);
+			int minx = (int) ((pixelPosition.x - indicatorBrushSize/2) * zoom);
+			int miny = (int) ((pixelPosition.y - indicatorBrushSize/2) * zoom);
+			int maxx = (int) ((pixelPosition.x - indicatorBrushSize/2 + indicatorBrushSize) * zoom) - 1;
+			int maxy = (int) ((pixelPosition.y - indicatorBrushSize/2 + indicatorBrushSize) * zoom) - 1;
 			g.setColor(Color.black);
 			g.drawRect(minx, miny, maxx-minx, maxy-miny);
 			g.setColor(Color.white);
 			g.drawRect(minx + strokeSize, miny + strokeSize, maxx-minx - strokeSize*2, maxy-miny - strokeSize*2);
 			if(DriverKPaint.DEBUG) {
 				g.setColor(Color.green);
-				g.drawString(pixelSize + "", 10, getHeight() - 70);
-				g.drawString(xOffset + "," + yOffset, 10, getHeight() - 50);
-				g.drawString(previousMousePosition.x + "," + previousMousePosition.y, 10, getHeight() - 30);
+				g.drawString(zoom + "", 10, getHeight() - 70);
+				g.drawString(cameraOffset.toString(), 10, getHeight() - 50);
+				g.drawString(previousMousePosition.toString(), 10, getHeight() - 30);
 			}
 			infoStrings.add("Mouse Position: " + pixelPosition.x + ", " + pixelPosition.y);
 		}
 
 		
-		infoStrings.add("Brush Size: " + brush.getBrushSize());
+		infoStrings.add("Brush Size: " + brush.getSize());
 		infoStrings.add("Canvas Size: " + getCurrentImage().getWidth() + ", " + getCurrentImage().getHeight());
-		if(resizingCanvas != null) {
+		if(resizingLayer != null) {
 			infoStrings.add("New Canvas Size: " + targetCanvasSize.width + ", " + targetCanvasSize.height);
 		}
 //		if(selectedRectangle != null) {
 //			infoStrings.add("Selection Dims: " + selectedRectangle.x + ", " + selectedRectangle.y + ", " + (selectedRectangle.width+1) + ", " + (selectedRectangle.height+1));
 //		}
-		g.translate(-xOffset, -yOffset);
+		g.translate(-cameraOffset.x, -cameraOffset.y);
 		g.setColor(Color.green);
 		g.setFont(DriverKPaint.MAIN_FONT);
 		int y = 25;

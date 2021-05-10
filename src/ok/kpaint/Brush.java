@@ -3,17 +3,22 @@ package ok.kpaint;
 import java.awt.*;
 
 public class Brush {
+
+	public static final Brush DEFAULT_BRUSH = new Brush(10, BrushShape.CIRCLE, BrushMode.BRUSH, Color.white);
 	
-	private int brushSize;
+	private int size;
 	private BrushShape shape;
-	private BrushMode brushMode;
+	private BrushMode mode;
 	private Color color;
 	
 	public Brush(int brushSize, BrushShape shape, BrushMode mode, Color color) {
-		this.brushSize = brushSize;
+		this.size = brushSize;
 		this.shape = shape;
-		this.brushMode = mode;
+		this.mode = mode;
 		this.color = color;
+	}
+	public Brush(Brush other) {
+		this(other.size, other.shape, other.mode, other.color);
 	}
 
 	public BrushShape getShape() {
@@ -24,20 +29,20 @@ public class Brush {
 		this.shape = shape;
 	}
 
-	public int getBrushSize() {
-		return brushSize;
+	public int getSize() {
+		return size;
 	}
 
-	public void setBrushSize(int brushSize) {
-		this.brushSize = brushSize;
+	public void setSize(int brushSize) {
+		this.size = brushSize;
 	}
 
 	public BrushMode getMode() {
-		return brushMode;
+		return mode;
 	}
 
 	public void setMode(BrushMode brushMode) {
-		this.brushMode = brushMode;
+		this.mode = brushMode;
 	}
 	
 	public void setColor(Color color) {

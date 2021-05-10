@@ -90,7 +90,7 @@ public class GUIPanel extends JPanel {
 				}
 			});
 			group.add(modeButton);
-			if(mode == ImagePanel.DEFAULT_BRUSHMODE) {
+			if(mode == Brush.DEFAULT_BRUSH.getMode()) {
 				modeButton.setSelected(true);
 				imagePanelInterface.setBrushMode(mode);
 			}
@@ -157,7 +157,8 @@ public class GUIPanel extends JPanel {
 			imagePanelInterface.showTiling(toggleTiling.isSelected());
 		});
 
-		brushSize2 = new KSlider(1, 10);
+		brushSize2 = new KSlider(1, 20);
+		brushSize2.setValue(Brush.DEFAULT_BRUSH.getSize());
 		brushSize2.addChangeListener(e -> {
 			imagePanelInterface.setBrushSize(brushSize2.getValue());
 		});
@@ -189,6 +190,7 @@ public class GUIPanel extends JPanel {
 		
 		brushShape = new JComboBox<>(BrushShape.values());
 		KUI.setupJComponent(brushShape, "Changes brush shape between square and circle", Utils.resizeImageIcon(Utils.loadImageIconResource("resources/brush_shape.png"), 32, 32));
+		brushShape.setSelectedItem(Brush.DEFAULT_BRUSH.getShape());
 		brushShape.addActionListener(e -> {
 			imagePanelInterface.setBrushShape((BrushShape)brushShape.getSelectedItem());
 		});
