@@ -7,13 +7,17 @@ import java.io.*;
 import javax.imageio.ImageIO;
 import javax.swing.*;
 
+import ok.kpaint.gui.*;
+import ok.kpaint.gui.layers.*;
+
 public class DriverKPaint {
+	public static final boolean NEW_VERSION = true;
+	
 	public static final Font MAIN_FONT = new Font("Comic Sans MS", Font.PLAIN, 15);
 	public static final Font MAIN_FONT_BIG = new Font("Cooper Black", Font.PLAIN, 16);
 	public static final boolean DEBUG = false;
 	
 	public static final String TITLE = "KPaint 1.1";
-	
 	
 	private JFrame frame;
 	private ImagePanel imagePanel;
@@ -24,6 +28,8 @@ public class DriverKPaint {
 	
 
 	final JFileChooser fc = new JFileChooser(System.getProperty("user.dir"));
+	
+	private Layers layers = new Layers();;
 
 	public DriverKPaint() {
 		try {
@@ -57,11 +63,13 @@ public class DriverKPaint {
 		frame.setIconImage(Utils.loadImageIconResource("resources/icon.png").getImage());
 		frame.setVisible(true);
 		
-		imagePanel = new ImagePanel();
-		imagePanelInterface = imagePanel.getInterface();
-		frame.add(imagePanel, BorderLayout.CENTER);
+		imagePanel = new ImagePanel(layers);
 		
-		GUIPanel guiPanel = new GUIPanel(controllerInterface, imagePanelInterface);
+		GUIPanel guiPanel;
+		frame.add(imagePanel, BorderLayout.CENTER);
+		imagePanelInterface = imagePanel.getInterface();
+		
+		guiPanel = new GUIPanel(controllerInterface, imagePanelInterface, layers);
 		guiInterface = guiPanel.getInterface();
 		guiInterface.switchLayout(true);
 		frame.add(guiPanel, BorderLayout.WEST);
@@ -101,7 +109,7 @@ public class DriverKPaint {
 	private void openImage(String path) {
 		BufferedImage image = loadImage(path);
 		if (image != null) {
-			imagePanel.setImage(image);
+			imagePanel.addImageLayer(image);
 			imagePanelInterface.resetView();
 			updateTitle(path);
 		}
@@ -151,6 +159,11 @@ public class DriverKPaint {
 		DriverKPaint p = new DriverKPaint();
 		if (args.length > 0) {
 			p.openImage(args[0]);
+			p.imagePanelInterface.resetView();
+		}
+		else {
+			p.layers.add();
+			p.imagePanelInterface.resetView();
 		}
 	}
 

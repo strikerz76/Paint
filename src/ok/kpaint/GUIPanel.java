@@ -4,8 +4,11 @@ import java.awt.*;
 import java.awt.event.*;
 import java.util.*;
 
+import javax.imageio.plugins.tiff.*;
 import javax.swing.*;
 
+import ok.kpaint.gui.*;
+import ok.kpaint.gui.layers.*;
 import ok.kui.*;
 
 public class GUIPanel extends JPanel {
@@ -25,17 +28,23 @@ public class GUIPanel extends JPanel {
 	private KSlider brushSize2;
 	private JButton brushColor1;
 	private JButton brushColor2;
+	private JButton transparentButton;
 	private ColorSwatches swatchesPanel;
 	private JComboBox<BrushShape> brushShape;
 	private JPanel fillerPanel;
 	
+	private LayersPanel layersPanel;
+	private Layers layers;
+	
 	private GUIInterface guiInterface = new GUIInterface() {
 		@Override
 		public void finishedSelection() {
-			clickModeButton(BrushMode.MOVE);
+//			clickModeButton(BrushMode.MOVE);
 		}
 		@Override
 		public void changedColor(Color newColor) {
+			brushColor1.revalidate();
+			brushColor2.repaint();
 			swatchesPanel.choseColor(newColor);
 			clickModeButton(BrushMode.BRUSH);
 			repaint();
@@ -55,10 +64,11 @@ public class GUIPanel extends JPanel {
 		}
 	};
 	
-	public GUIPanel(ControllerInterface controllerInterface, ImagePanelInterface imagePanelInterface) {
+	public GUIPanel(ControllerInterface controllerInterface, ImagePanelInterface imagePanelInterface, Layers layers) {
 		this.controllerInterface = controllerInterface;
 		this.imagePanelInterface = imagePanelInterface;
 		this.setLayout(new GridBagLayout());
+		this.layers = layers;
 	}
 	
 	public GUIInterface getInterface() {
@@ -80,7 +90,7 @@ public class GUIPanel extends JPanel {
 				}
 			});
 			group.add(modeButton);
-			if(mode == BrushMode.MOVE) {
+			if(mode == ImagePanel.DEFAULT_BRUSHMODE) {
 				modeButton.setSelected(true);
 				imagePanelInterface.setBrushMode(mode);
 			}
@@ -155,22 +165,22 @@ public class GUIPanel extends JPanel {
 		brushColor1 = KUI.setupColorButton("Main", new HasColor() {
 			@Override
 			public Color getColor() {
-				return imagePanelInterface.getColor1();
+				return imagePanelInterface.getMainColor();
 			}
 			@Override
 			public void setColor(Color color) {
-				imagePanelInterface.setColor1(color);
+				imagePanelInterface.setMainColor(color);
 			}
 		});
 
 		brushColor2 = KUI.setupColorButton("Shift", new HasColor() {
 			@Override
 			public Color getColor() {
-				return imagePanelInterface.getColor2();
+				return imagePanelInterface.getAltColor();
 			}
 			@Override
 			public void setColor(Color color) {
-				imagePanelInterface.setColor2(color);
+				imagePanelInterface.setAltColor(color);
 			}
 		});
 		
@@ -182,6 +192,10 @@ public class GUIPanel extends JPanel {
 		brushShape.addActionListener(e -> {
 			imagePanelInterface.setBrushShape((BrushShape)brushShape.getSelectedItem());
 		});
+		
+		if(DriverKPaint.NEW_VERSION) {
+			layersPanel = new LayersPanel(layers);
+		}
 
 		fillerPanel = new JPanel();
 		fillerPanel.setOpaque(false);
@@ -250,8 +264,8 @@ public class GUIPanel extends JPanel {
 		c.gridx = 0; c.gridy = row++; c.weighty = 1;
 		this.add(getSeparator(20, Color.white), c);
 		c.weighty = 0;
-		c.gridx = 0; c.gridy = row++;
-		this.add(modeButtons.get(BrushMode.MOVE), c);
+//		c.gridx = 0; c.gridy = row++;
+//		this.add(modeButtons.get(BrushMode.MOVE), c);
 		c.gridx = 0; c.gridy = row++;
 		this.add(modeButtons.get(BrushMode.BRUSH), c);
 		c.gridx = 0; c.gridy = row++;
@@ -280,6 +294,16 @@ public class GUIPanel extends JPanel {
 
 		c.gridx = 0; c.gridy = row++;
 		this.add(swatchesPanel, c);
+		
+		if(DriverKPaint.NEW_VERSION) {
+			// ############ ROW 6 ################## 
+			c.gridx = 0; c.gridy = row++; c.weightx = 1;
+			this.add(getSeparator(20, Color.white), c);
+			c.weightx = 0;
+			c.gridx = 0; c.gridy = row++;
+			this.add(layersPanel.getPanel(), c);
+		}
+		
 
 		// ############ FILLER ################## 
 		c.gridx = 0; c.gridy = row++; c.weightx = 1; c.weighty = 5;
@@ -322,8 +346,8 @@ public class GUIPanel extends JPanel {
 		this.add(toggleTiling, c);
 		
 		// ############ ROW 3 ################## 
-		c.gridx = 0; c.gridy = 3;
-		this.add(modeButtons.get(BrushMode.MOVE), c);
+//		c.gridx = 0; c.gridy = 3;
+//		this.add(modeButtons.get(BrushMode.MOVE), c);
 		c.gridx = 1; c.gridy = 3;
 		this.add(modeButtons.get(BrushMode.BRUSH), c);
 		c.gridx = 2; c.gridy = 3;

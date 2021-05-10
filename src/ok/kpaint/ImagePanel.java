@@ -2,73 +2,47 @@ package ok.kpaint;
 import java.awt.*;
 import java.awt.event.*;
 import java.awt.geom.*;
-import java.awt.image.BufferedImage;
+import java.awt.image.*;
 import java.util.*;
 
 import javax.swing.*;
 
 import ok.kpaint.Utils.*;
+import ok.kpaint.gui.layers.*;
 
-public class ImagePanel extends JPanel {
-
-	public class Pixel {
-		private int x;
-		private int y;
-		public Pixel(int x, int y) {
-			this.x = x;
-			this.y = y;
-		}
-		@Override
-		public boolean equals(Object other) {
-			if(other instanceof Pixel) {
-				Pixel pixel = (Pixel)other;
-				return this.x == pixel.x && this.y == pixel.y;
-			}
-			return false;
-		}
-		@Override
-		public int hashCode() {
-			return (x + "," + y).hashCode();
-		}
-	}
-
+public class ImagePanel extends JPanel implements LayersListener {
+	
+	public static final BrushMode DEFAULT_BRUSHMODE = BrushMode.BRUSH;
+	
 	private LinkedList<String> infoStrings = new LinkedList<>();
-	private History history = new History();
-	private volatile BufferedImage selectedImage;
 	private int xOffset;
 	private int yOffset;
 	private Point previousMousePosition = new Point(0, 0);
-	private Point startedSelection = new Point(0, 0);
 	private boolean movingCanvas;
 	private Edge resizingCanvas;
 	private Rectangle targetCanvasSize = new Rectangle();
-	private Edge movingSelection;
 	private HashSet<Integer> mouseButtonsPressed = new HashSet<>();
 
 	/** AKA zoom level */
 	private double pixelSize = 1;
-	private Brush brush = new Brush(1, BrushShape.SQUARE, BrushMode.MOVE);
-	public void setBrushMode(BrushMode mode) {
-		brush.setMode(mode);
-	}
+	private Brush brush = new Brush(1, BrushShape.SQUARE, DEFAULT_BRUSHMODE, Color.white);
+	private Layers layers;
 	
-	private Color color1;
-	private Color color2;
+	private Color altColor;
 	
 	private boolean showTiling;
 	
-	private volatile Rectangle selectedRectangle;
 	private GUIInterface guiInterface;
 	private ControllerInterface controllerInterface;
 	private ImagePanelInterface ipInterface = new ImagePanelInterface() {
 		@Override
 		public void undo() {
-			history.rewindVersion();
+//			history.rewindVersion();
 			repaint();
 		}
 		@Override
 		public void redo() {
-			history.upwindVersion();
+//			history.upwindVersion();
 			repaint();
 		}
 		@Override
@@ -88,22 +62,29 @@ public class ImagePanel extends JPanel {
 			ImagePanel.this.pasteFromClipboard();
 		}
 		@Override
-		public Color getColor1() {
-			return ImagePanel.this.color1;
+		public Color getMainColor() {
+			return brush.getColor();
 		}
 		@Override
-		public Color getColor2() {
-			return ImagePanel.this.color2;
+		public Color getAltColor() {
+			return altColor;
 		}
 		@Override
-		public void setColor1(Color color1) {
-			ImagePanel.this.color1 = color1;
-			guiInterface.changedColor(color1);
+		public void setMainColor(Color mainColor) {
+			brush.setColor(mainColor);
+			guiInterface.changedColor(mainColor);
 		}
 		@Override
-		public void setColor2(Color color2) {
-			ImagePanel.this.color2 = color2;
-			guiInterface.changedColor(color2);
+		public void setAltColor(Color altColor) {
+			ImagePanel.this.altColor = altColor;
+			guiInterface.changedColor(altColor);
+		}
+		@Override
+		public void swapColors() {
+			Color temp = brush.getColor();
+			brush.setColor(altColor);
+			altColor = temp;
+			guiInterface.changedColor(altColor);
 		}
 		@Override
 		public void newCanvas() {
@@ -155,24 +136,25 @@ public class ImagePanel extends JPanel {
 	}
 
 	public void resetImage(int w, int h) {
-		BufferedImage defaultImage = new BufferedImage(w, h, BufferedImage.TYPE_4BYTE_ABGR);
-		Graphics g = defaultImage.getGraphics();
-		g.setColor(color2);
-		g.fillRect(0, 0, defaultImage.getWidth(), defaultImage.getHeight());
-		g.dispose();
-		setImage(defaultImage);
+//		BufferedImage defaultImage = new BufferedImage(w, h, BufferedImage.TYPE_4BYTE_ABGR);
+//		Graphics g = defaultImage.getGraphics();
+//		g.setColor(altColor);
+//		g.fillRect(0, 0, defaultImage.getWidth(), defaultImage.getHeight());
+//		g.dispose();
+//		addImageLayer(defaultImage);
 		resetView();
 	}
-	public ImagePanel() {
-		color1 = Color.black;
-		color2 = Color.white;
+	public ImagePanel(Layers layers) {
+		this.layers = layers;
+		layers.addListener(this);
+		altColor = Color.black;
 		resetImage(512, 512);
 		this.addMouseWheelListener(new MouseWheelListener() {
 			@Override
 			public void mouseWheelMoved(MouseWheelEvent e) {
 				Point pixelPosition = getPixelPosition(e.getPoint());
-				pixelPosition.x = Math.max(0, Math.min(pixelPosition.x, history.getCurrent().getWidth()));
-				pixelPosition.y = Math.max(0, Math.min(pixelPosition.y, history.getCurrent().getHeight()));
+				pixelPosition.x = Math.max(0, Math.min(pixelPosition.x, layers.active().w()));
+				pixelPosition.y = Math.max(0, Math.min(pixelPosition.y, layers.active().h()));
 				double oldPixelSize = pixelSize;
 				if (e.getWheelRotation() > 0) {
 					pixelSize = pixelSize * 0.9;
@@ -208,12 +190,7 @@ public class ImagePanel extends JPanel {
 						ipInterface.pasteFromClipboard();
 					}
 					else if(e.getKeyCode() == KeyEvent.VK_C) {
-						if(selectedImage != null) {
-							ClipboardImage.setClipboard(selectedImage);
-						}
-						else {
-							ClipboardImage.setClipboard(getCurrentImage());
-						}
+						ClipboardImage.setClipboard(getCurrentImage());
 					}
 					if(e.getKeyCode() == KeyEvent.VK_Z) {
 						if(e.isShiftDown()) {
@@ -239,11 +216,11 @@ public class ImagePanel extends JPanel {
 					else if(e.getKeyCode() == KeyEvent.VK_SPACE) {
 						ipInterface.resetView();
 					}
+					else if(e.getKeyCode() == KeyEvent.VK_SHIFT) {
+						ipInterface.swapColors();
+					}
 					else if(e.getKeyCode() == KeyEvent.VK_P) {
 						guiInterface.changeModeHotkey(BrushMode.COLOR_PICKER);
-					}
-					else if(e.getKeyCode() == KeyEvent.VK_M) {
-						guiInterface.changeModeHotkey(BrushMode.MOVE);
 					}
 					else if(e.getKeyCode() == KeyEvent.VK_S) {
 						guiInterface.changeModeHotkey(BrushMode.SELECT);
@@ -265,28 +242,25 @@ public class ImagePanel extends JPanel {
 			public void mousePressed(MouseEvent e) {
 //				mousePosition = e.getPoint();
 				mouseButtonsPressed.add(e.getButton());
-				if(e.getButton() == MouseEvent.BUTTON2) {
+				if(e.getButton() == MouseEvent.BUTTON2 || e.getButton() == MouseEvent.BUTTON3) {
 					startMovingCanvas(e.getPoint());
-				}
-				else if(brush.getMode() == BrushMode.MOVE) {
-					Edge edge = Edge.OUTSIDE;
-					if(selectedRectangle != null) {
-						Rectangle sel = getSelectionScreenRectangle();
-						if(sel != null) {
-							edge = Utils.isNearEdge(e.getPoint(), sel);
-						}
-					}
-					if(edge == Edge.OUTSIDE) {
-						startMovingCanvas(e.getPoint());
-					}
-					else {
-						startMovingSelection(edge);
-					}
-					 
+//					Edge edge = Edge.OUTSIDE;
+//					if(selectedRectangle != null) {
+//						Rectangle sel = getSelectionScreenRectangle();
+//						if(sel != null) {
+//							edge = Utils.isNearEdge(e.getPoint(), sel);
+//						}
+//					}
+//					if(edge == Edge.OUTSIDE) {
+//						startMovingCanvas(e.getPoint());
+//					}
+//					else {
+//						startMovingSelection(edge);
+//					}
 				}
 				else if(brush.getMode() == BrushMode.SELECT) {
 					resetSelection();
-					startedSelection = e.getPoint();
+//					startedSelection = e.getPoint();
 					updateSelectionRectangle(e.getPoint());
 				}
 				else if(brush.getMode() == BrushMode.COLOR_PICKER) {
@@ -303,15 +277,15 @@ public class ImagePanel extends JPanel {
 			public void mouseReleased(MouseEvent e) {
 //				mousePosition = e.getPoint();
 				mouseButtonsPressed.remove(e.getButton());
-				if (e.getButton() == MouseEvent.BUTTON2) {
+				if (e.getButton() == MouseEvent.BUTTON2 || e.getButton() == MouseEvent.BUTTON3) {
 					System.out.println("finishMovingCanvas");
 					finishMovingCanvas();
 				}
-				else if(brush.getMode() == BrushMode.MOVE) {
-					System.out.println("finishMovingSelection & finishMovingCanvas");
-					finishMovingSelection();
-					finishMovingCanvas();
-				}
+//				else if(brush.getMode() == BrushMode.MOVE) {
+//					System.out.println("finishMovingSelection & finishMovingCanvas");
+//					finishMovingSelection();
+//					finishMovingCanvas();
+//				}
 				else if(brush.getMode() == BrushMode.SELECT) {
 					System.out.println("finish selection");
 					updateSelectionRectangle(e.getPoint());
@@ -319,7 +293,7 @@ public class ImagePanel extends JPanel {
 					guiInterface.finishedSelection();
 				}
 				else {
-					history.pushVersion();
+//					history.pushVersion();
 					repaint();
 				}
 				previousMousePosition = e.getPoint();
@@ -341,11 +315,11 @@ public class ImagePanel extends JPanel {
 				if (movingCanvas || resizingCanvas != null) {
 					updateCanvasMove(previousMousePosition, e.getPoint());
 				}
-				else if(movingSelection != null && movingSelection != Edge.OUTSIDE) {
-					Point previousPos = getPixelPosition(previousMousePosition);
-					Point newPos = getPixelPosition(e.getPoint());
-					updateSelectionMove(previousPos, newPos);
-				}
+//				else if(movingSelection != null && movingSelection != Edge.OUTSIDE) {
+//					Point previousPos = getPixelPosition(previousMousePosition);
+//					Point newPos = getPixelPosition(e.getPoint());
+//					updateSelectionMove(previousPos, newPos);
+//				}
 				else if(brush.getMode() == BrushMode.SELECT) {
 					updateSelectionRectangle(e.getPoint());
 				}
@@ -363,19 +337,21 @@ public class ImagePanel extends JPanel {
 					newCursorType = Cursor.CROSSHAIR_CURSOR;
 				}
 				Rectangle canvasRect = getCanvasScreenRectangle();
-				if(brush.getMode() == BrushMode.MOVE) {
+//				if(brush.getMode() == BrushMode.MOVE) {
 					Edge canvasEdge = Utils.isNearEdge(e.getPoint(), canvasRect);
 					if(canvasEdge != Edge.OUTSIDE && canvasEdge != Edge.INSIDE) {
 						newCursorType = canvasEdge.getCursorType();
 					}
-				}
-				if(brush.getMode() == BrushMode.MOVE && selectedRectangle != null) {
-					Rectangle selectionRect = getSelectionScreenRectangle();
-					Edge selectionEdge = Utils.isNearEdge(e.getPoint(), selectionRect);
-					if(selectionEdge != Edge.OUTSIDE) {
-						newCursorType = selectionEdge.getCursorType();
-					}
-				}
+//				}
+//				if(brush.getMode() == BrushMode.MOVE && selectedRectangle != null) {
+//				if(brush.getMode() == BrushMode.MOVE && selectedRectangle != null) {
+//					Rectangle selectionRect = getSelectionScreenRectangle();
+//					Edge selectionEdge = Utils.isNearEdge(e.getPoint(), selectionRect);
+//					if(selectionEdge != Edge.OUTSIDE) {
+//						newCursorType = selectionEdge.getCursorType();
+//					}
+//				}
+//				}
 				ImagePanel.this.setCursor(new Cursor(newCursorType));
 				previousMousePosition = e.getPoint();
 				repaint();
@@ -387,10 +363,10 @@ public class ImagePanel extends JPanel {
 		if(movingCanvas) {
 			xOffset += newScreenPos.x - previousScreenPos.x;
 			yOffset += newScreenPos.y - previousScreenPos.y;
-			if(startedSelection != null) {
-				startedSelection.x += newScreenPos.x - previousScreenPos.x;
-				startedSelection.y += newScreenPos.y - previousScreenPos.y;
-			}
+//			if(startedSelection != null) {
+//				startedSelection.x += newScreenPos.x - previousScreenPos.x;
+//				startedSelection.y += newScreenPos.y - previousScreenPos.y;
+//			}
 		}
 		else if(resizingCanvas != null) {
 			Point previousPos = getPixelPosition(previousScreenPos);
@@ -418,62 +394,62 @@ public class ImagePanel extends JPanel {
 		}
 	}
 	
-	private void updateSelectionMove(Point previousPos, Point newPos) {
-		if(movingSelection == Edge.INSIDE) {
-			selectedRectangle.x += newPos.x - previousPos.x;
-			selectedRectangle.y += newPos.y - previousPos.y;
-		}
-		else if(movingSelection == Edge.EAST) {
-			if(newPos.x > selectedRectangle.x) {
-				selectedRectangle.width = newPos.x - selectedRectangle.x;
-			}
-			else {
-				selectedImage = createFlipped(selectedImage, false);
-				movingSelection = Edge.WEST;
-				selectedRectangle.width = selectedRectangle.x - newPos.x - 1;
-				selectedRectangle.x = newPos.x;
-			}
-		}
-		else if(movingSelection == Edge.WEST) {
-			if(newPos.x < selectedRectangle.x + selectedRectangle.width) {
-				selectedRectangle.width = (selectedRectangle.x + selectedRectangle.width) - newPos.x;
-				selectedRectangle.x = newPos.x;
-			}
-			else {
-				selectedImage = createFlipped(selectedImage, false);
-				movingSelection = Edge.EAST;
-				int newx = selectedRectangle.x + selectedRectangle.width + 1;
-				selectedRectangle.width = newPos.x - (selectedRectangle.x + selectedRectangle.width) - 1;
-				selectedRectangle.x = newx;
-			}
-		}
-		
-		if(movingSelection == Edge.SOUTH) {
-			if(newPos.y > selectedRectangle.y) {
-				selectedRectangle.height = newPos.y - selectedRectangle.y;
-			}
-			else {
-				selectedImage = createFlipped(selectedImage, true);
-				movingSelection = Edge.NORTH;
-				selectedRectangle.height = selectedRectangle.y - newPos.y - 1;
-				selectedRectangle.y = newPos.y;
-			}
-		}
-		else if(movingSelection == Edge.NORTH) {
-			if(newPos.y < selectedRectangle.y + selectedRectangle.height) {
-				selectedRectangle.height = (selectedRectangle.y + selectedRectangle.height) - newPos.y;
-				selectedRectangle.y = newPos.y;
-			}
-			else {
-				selectedImage = createFlipped(selectedImage, true);
-				movingSelection = Edge.SOUTH;
-				int newy = selectedRectangle.y + selectedRectangle.height + 1;
-				selectedRectangle.height = newPos.y - (selectedRectangle.y + selectedRectangle.height) - 1;
-				selectedRectangle.y = newy;
-			}
-		}
-		
-	}
+//	private void updateSelectionMove(Point previousPos, Point newPos) {
+//		if(movingSelection == Edge.INSIDE) {
+//			selectedRectangle.x += newPos.x - previousPos.x;
+//			selectedRectangle.y += newPos.y - previousPos.y;
+//		}
+//		else if(movingSelection == Edge.EAST) {
+//			if(newPos.x > selectedRectangle.x) {
+//				selectedRectangle.width = newPos.x - selectedRectangle.x;
+//			}
+//			else {
+//				selectedImage = createFlipped(selectedImage, false);
+//				movingSelection = Edge.WEST;
+//				selectedRectangle.width = selectedRectangle.x - newPos.x - 1;
+//				selectedRectangle.x = newPos.x;
+//			}
+//		}
+//		else if(movingSelection == Edge.WEST) {
+//			if(newPos.x < selectedRectangle.x + selectedRectangle.width) {
+//				selectedRectangle.width = (selectedRectangle.x + selectedRectangle.width) - newPos.x;
+//				selectedRectangle.x = newPos.x;
+//			}
+//			else {
+//				selectedImage = createFlipped(selectedImage, false);
+//				movingSelection = Edge.EAST;
+//				int newx = selectedRectangle.x + selectedRectangle.width + 1;
+//				selectedRectangle.width = newPos.x - (selectedRectangle.x + selectedRectangle.width) - 1;
+//				selectedRectangle.x = newx;
+//			}
+//		}
+//		
+//		if(movingSelection == Edge.SOUTH) {
+//			if(newPos.y > selectedRectangle.y) {
+//				selectedRectangle.height = newPos.y - selectedRectangle.y;
+//			}
+//			else {
+//				selectedImage = createFlipped(selectedImage, true);
+//				movingSelection = Edge.NORTH;
+//				selectedRectangle.height = selectedRectangle.y - newPos.y - 1;
+//				selectedRectangle.y = newPos.y;
+//			}
+//		}
+//		else if(movingSelection == Edge.NORTH) {
+//			if(newPos.y < selectedRectangle.y + selectedRectangle.height) {
+//				selectedRectangle.height = (selectedRectangle.y + selectedRectangle.height) - newPos.y;
+//				selectedRectangle.y = newPos.y;
+//			}
+//			else {
+//				selectedImage = createFlipped(selectedImage, true);
+//				movingSelection = Edge.SOUTH;
+//				int newy = selectedRectangle.y + selectedRectangle.height + 1;
+//				selectedRectangle.height = newPos.y - (selectedRectangle.y + selectedRectangle.height) - 1;
+//				selectedRectangle.y = newy;
+//			}
+//		}
+//		
+//	}
 
 	private static BufferedImage createFlipped(BufferedImage image, boolean northsouth) {
 		AffineTransform at = new AffineTransform();
@@ -503,10 +479,10 @@ public class ImagePanel extends JPanel {
 	}
 	
 	private void startMovingSelection(Edge edge) {
-		movingSelection = edge;
+//		movingSelection = edge;
 	}
 	private void finishMovingSelection() {
-		movingSelection = null;
+//		movingSelection = null;
 	}
 	
 	private void startMovingCanvas(Point mousePosition) {
@@ -517,10 +493,10 @@ public class ImagePanel extends JPanel {
 			movingCanvas = true;
 		}
 		else {
-			targetCanvasSize.x = 0;
-			targetCanvasSize.y = 0;
-			targetCanvasSize.width = getCurrentImage().getWidth();
-			targetCanvasSize.height = getCurrentImage().getHeight();
+			targetCanvasSize.x = layers.active().x();
+			targetCanvasSize.y = layers.active().y();
+			targetCanvasSize.width = layers.active().w();
+			targetCanvasSize.height = layers.active().h();
 			resizingCanvas = edge;
 		}
 	}
@@ -528,8 +504,9 @@ public class ImagePanel extends JPanel {
 	private void finishMovingCanvas() {
 		movingCanvas = false;
 		if(resizingCanvas != null) {
-			resizeCanvas(targetCanvasSize);
-			history.pushVersion();
+			layers.active().resize(targetCanvasSize, altColor);
+//			resizeCanvas(targetCanvasSize);
+//			history.pushVersion();
 			repaint();
 		}
 		resizingCanvas = null;
@@ -545,10 +522,10 @@ public class ImagePanel extends JPanel {
 	public void colorPicker(Point pixel, boolean shiftDown) {
 		Color selected = new Color(getCurrentImage().getRGB(pixel.x, pixel.y), true);
 		if(shiftDown) {
-			ipInterface.setColor2(selected);
+			ipInterface.setAltColor(selected);
 		}
 		else {
-			ipInterface.setColor1(selected);
+			ipInterface.setMainColor(selected);
 		}
 		repaint();
 	}
@@ -586,142 +563,154 @@ public class ImagePanel extends JPanel {
 		}
 	}
 	public void drawOnPixel(Point pixel, boolean shiftDown) {
-		history.modified();
-		Color setTo = color1;
-		if(shiftDown) {
-			setTo = color2;
+		if(!DriverKPaint.NEW_VERSION) {
+//			history.modified();
+			Color setTo = brush.getColor();
+			if(shiftDown) {
+				setTo = altColor;
+			}
+			Point lowerBound = new Point(pixel.x - brush.getBrushSize()/2, pixel.y - brush.getBrushSize()/2);
+			Point upperBound = new Point(lowerBound.x + brush.getBrushSize() - 1, lowerBound.y + brush.getBrushSize() - 1);
+			lowerBound.x = Math.max(lowerBound.x, 0);
+			lowerBound.y = Math.max(lowerBound.y, 0);
+			
+//			upperBound.x = Math.min(upperBound.x, history.getCurrent().getWidth()-1);
+//			upperBound.y = Math.min(upperBound.y, history.getCurrent().getHeight()-1);
+			
+			if (brush.getMode() == BrushMode.ALL_MATCHING_COLOR) {
+				matchColorDraw(lowerBound, upperBound, setTo);
+			} 
+			else if (brush.getMode() == BrushMode.FILL) {
+				fill(lowerBound, upperBound, setTo);
+			}
+			else if (brush.getMode() == BrushMode.BRUSH) {
+				brush(lowerBound, upperBound, brush.getShape(), setTo);
+			}
 		}
-		Point lowerBound = new Point(pixel.x - brush.getBrushSize()/2, pixel.y - brush.getBrushSize()/2);
-		Point upperBound = new Point(lowerBound.x + brush.getBrushSize() - 1, lowerBound.y + brush.getBrushSize() - 1);
-		lowerBound.x = Math.max(lowerBound.x, 0);
-		lowerBound.y = Math.max(lowerBound.y, 0);
-		
-		upperBound.x = Math.min(upperBound.x, history.getCurrent().getWidth()-1);
-		upperBound.y = Math.min(upperBound.y, history.getCurrent().getHeight()-1);
-		
-		if (brush.getMode() == BrushMode.ALL_MATCHING_COLOR) {
-			matchColorDraw(lowerBound, upperBound, setTo);
-		} 
-		else if (brush.getMode() == BrushMode.FILL) {
-			fill(lowerBound, upperBound, setTo);
-		}
-		else if (brush.getMode() == BrushMode.BRUSH) {
-			brush(lowerBound, upperBound, brush.getShape(), setTo);
+		else {
+			layers.draw(new Pixel(pixel), brush);
 		}
 		repaint();
 	}
 	
 	public void updateSelectionRectangle(Point mousePosition) {
-		Point one = getPixelPosition(mousePosition);
-		Point two = getPixelPosition(startedSelection);
-		int minx = Math.max(Math.min(one.x, two.x), 0);
-		int miny = Math.max(Math.min(one.y, two.y), 0);
-		int maxx = Math.min(Math.max(one.x, two.x), history.getCurrent().getWidth()-1);
-		int maxy = Math.min(Math.max(one.y, two.y), history.getCurrent().getHeight()-1);
-		selectedRectangle = new Rectangle(minx, miny, maxx-minx, maxy-miny);
+//		Point one = getPixelPosition(mousePosition);
+//		Point two = getPixelPosition(startedSelection);
+//		int minx = Math.max(Math.min(one.x, two.x), 0);
+//		int miny = Math.max(Math.min(one.y, two.y), 0);
+//		int maxx = Math.min(Math.max(one.x, two.x), layers.active().w()-1);
+//		int maxy = Math.min(Math.max(one.y, two.y), layers.active().h()-1);
+//		selectedRectangle = new Rectangle(minx, miny, maxx-minx, maxy-miny);
 	}
 	public void selectAll() {
-		selectedRectangle = new Rectangle(0, 0, getCurrentImage().getWidth()-1, getCurrentImage().getHeight()-1);
+//		selectedRectangle = new Rectangle(0, 0, getCurrentImage().getWidth()-1, getCurrentImage().getHeight()-1);
 	}
 	
 	public void updateSelection() {
-		history.modified();
-		BufferedImage subimage = history.getCurrent().getSubimage(selectedRectangle.x, selectedRectangle.y, selectedRectangle.width + 1, selectedRectangle.height + 1);
-		selectedImage = Utils.copyImage(subimage);
-		brush(new Point(selectedRectangle.x, selectedRectangle.y), new Point(selectedRectangle.x+selectedRectangle.width, selectedRectangle.y + selectedRectangle.height), BrushShape.SQUARE, color2);
-		history.pushVersion();
-		repaint();
+//		history.modified();
+//		BufferedImage subimage = history.getCurrent().getSubimage(selectedRectangle.x, selectedRectangle.y, selectedRectangle.width + 1, selectedRectangle.height + 1);
+//		selectedImage = Utils.copyImage(subimage);
+//		brush(new Point(selectedRectangle.x, selectedRectangle.y), new Point(selectedRectangle.x+selectedRectangle.width, selectedRectangle.y + selectedRectangle.height), BrushShape.SQUARE, color2);
+//		history.pushVersion();
+//		repaint();
 	}
 
-	public void resizeCanvas(Rectangle newSize) {
-		BufferedImage newImage = new BufferedImage(newSize.width, newSize.height, BufferedImage.TYPE_4BYTE_ABGR);
-		Graphics g = newImage.getGraphics();
-		g.setColor(color2);
-		g.fillRect(0, 0, -newSize.x, newImage.getHeight());
-		g.fillRect(0, 0, newImage.getWidth(), -newSize.y);
-		BufferedImage currentImage = history.getCurrent();
-		g.fillRect(-newSize.x + currentImage.getWidth(), 0, newImage.getWidth(), newImage.getHeight());
-		g.fillRect(0, -newSize.y + currentImage.getHeight(), newImage.getWidth(), newImage.getHeight());
-		g.drawImage(currentImage, -newSize.x, -newSize.y, null);
-		g.dispose();
-		history.setCurrentImage(newImage);
-		if(selectedRectangle != null) {
-			selectedRectangle.x -= newSize.x;
-			selectedRectangle.y -= newSize.y;
-		}
-		xOffset += newSize.x*pixelSize;
-		yOffset += newSize.y*pixelSize;
-	}
+//	public void resizeCanvas(Rectangle newSize) {
+////		BufferedImage newImage = new BufferedImage(newSize.width, newSize.height, BufferedImage.TYPE_4BYTE_ABGR);
+////		Graphics g = newImage.getGraphics();
+////		g.setColor(color2);
+////		g.fillRect(0, 0, -newSize.x, newImage.getHeight());
+////		g.fillRect(0, 0, newImage.getWidth(), -newSize.y);
+////		BufferedImage currentImage = history.getCurrent();
+////		g.fillRect(-newSize.x + currentImage.getWidth(), 0, newImage.getWidth(), newImage.getHeight());
+////		g.fillRect(0, -newSize.y + currentImage.getHeight(), newImage.getWidth(), newImage.getHeight());
+////		g.drawImage(currentImage, -newSize.x, -newSize.y, null);
+////		g.dispose();
+////		history.setCurrentImage(newImage);
+////		if(selectedRectangle != null) {
+////			selectedRectangle.x -= newSize.x;
+////			selectedRectangle.y -= newSize.y;
+////		}
+////		xOffset += newSize.x*pixelSize;
+////		yOffset += newSize.y*pixelSize;
+//	}
 	
 	private void pasteFromClipboard() {
-		Image image = Utils.getImageFromClipboard();
-		if(image != null) {
-			ipInterface.applySelection();
-			selectedImage = Utils.toBufferedImage(image); 
-			selectedRectangle = new Rectangle((int)((getWidth()/2-xOffset)/pixelSize - selectedImage.getWidth()/2), (int)((getHeight()/2-yOffset)/pixelSize - selectedImage.getHeight()/2), selectedImage.getWidth()-1, selectedImage.getHeight()-1);
-			repaint();
-		}
+//		Image image = Utils.getImageFromClipboard();
+//		if(image != null) {
+//			ipInterface.applySelection();
+//			selectedImage = Utils.toBufferedImage(image); 
+//			selectedRectangle = new Rectangle((int)((getWidth()/2-xOffset)/pixelSize - selectedImage.getWidth()/2), (int)((getHeight()/2-yOffset)/pixelSize - selectedImage.getHeight()/2), selectedImage.getWidth()-1, selectedImage.getHeight()-1);
+//			repaint();
+//		}
 	}
 	
 	private void clearSelection() {
-		selectedImage = null;
-		selectedRectangle = null;
-		repaint();
+//		selectedImage = null;
+//		selectedRectangle = null;
+//		repaint();
 	}
 	
 	private Rectangle getSelectionScreenRectangle() {
-		if(selectedRectangle != null) {
-			return new Rectangle((int) (selectedRectangle.x*pixelSize+xOffset), (int) (selectedRectangle.y*pixelSize+yOffset), (int) ((selectedRectangle.width+1)*pixelSize)-1, (int) ((selectedRectangle.height+1)*pixelSize)-1);
-		}
+//		if(selectedRectangle != null) {
+//			return new Rectangle((int) (selectedRectangle.x*pixelSize+xOffset), (int) (selectedRectangle.y*pixelSize+yOffset), (int) ((selectedRectangle.width+1)*pixelSize)-1, (int) ((selectedRectangle.height+1)*pixelSize)-1);
+//		}
 		return null;
 	}
 	
 	private Rectangle getCanvasScreenRectangle() {
-		return new Rectangle(xOffset, yOffset, (int) (getCurrentImage().getWidth()*pixelSize), (int) (getCurrentImage().getHeight()*pixelSize));
+		return new Rectangle(
+				(int)(xOffset + layers.active().x()*pixelSize), 
+				(int)(yOffset + layers.active().y() * pixelSize), 
+				(int)(layers.active().w()*pixelSize), 
+				(int)(layers.active().h()*pixelSize));
+		
+//		return new Rectangle(xOffset, yOffset, (int) (getCurrentImage().getWidth()*pixelSize), (int) (getCurrentImage().getHeight()*pixelSize));
 	}
 	
 	private Rectangle getCanvasSizeWithSelection() {
-		if(selectedRectangle == null || selectedImage == null) {
-			return new Rectangle(0, 0, getCurrentImage().getWidth(), getCurrentImage().getHeight());
-		}
-		int minx = Math.min(selectedRectangle.x, 0);
-		int miny = Math.min(selectedRectangle.y, 0);
-		int maxx = Math.max(selectedRectangle.x + selectedImage.getWidth(), getCurrentImage().getWidth());
-		int maxy = Math.max(selectedRectangle.y + selectedImage.getHeight(), getCurrentImage().getHeight());
-		int x = 0;
-		int y = 0;
-		if(selectedRectangle.x < 0) {
-			x = selectedRectangle.x;
-		}
-		if(selectedRectangle.y < 0) {
-			y = selectedRectangle.y;
-		}
-		return new Rectangle(x, y, maxx - minx, maxy - miny);
+//		if(selectedRectangle == null || selectedImage == null) {
+//			return new Rectangle(0, 0, getCurrentImage().getWidth(), getCurrentImage().getHeight());
+//		}
+//		int minx = Math.min(selectedRectangle.x, 0);
+//		int miny = Math.min(selectedRectangle.y, 0);
+//		int maxx = Math.max(selectedRectangle.x + selectedImage.getWidth(), getCurrentImage().getWidth());
+//		int maxy = Math.max(selectedRectangle.y + selectedImage.getHeight(), getCurrentImage().getHeight());
+//		int x = 0;
+//		int y = 0;
+//		if(selectedRectangle.x < 0) {
+//			x = selectedRectangle.x;
+//		}
+//		if(selectedRectangle.y < 0) {
+//			y = selectedRectangle.y;
+//		}
+//		return new Rectangle(x, y, maxx - minx, maxy - miny);
+		return getCanvasScreenRectangle();
 	}
 	
 	private void applySelection() {
-		if(selectedRectangle == null || selectedImage == null) {
-			return;
-		}
-		history.modified();
-		Rectangle newCanvasSize = getCanvasSizeWithSelection();
-		
-		if(newCanvasSize.width != getCurrentImage().getWidth() || newCanvasSize.height != getCurrentImage().getHeight()) {
-			System.out.println("resizing");
-			resizeCanvas(newCanvasSize);
-		}
-		Graphics g = getCurrentImage().getGraphics();
-		g.drawImage(selectedImage, selectedRectangle.x, selectedRectangle.y, selectedRectangle.width+1, selectedRectangle.height+1, null);
-		g.dispose();
-		resetSelection();
-		history.pushVersion();
-		repaint();
+//		if(selectedRectangle == null || selectedImage == null) {
+//			return;
+//		}
+////		history.modified();
+//		Rectangle newCanvasSize = getCanvasSizeWithSelection();
+//		
+//		if(newCanvasSize.width != getCurrentImage().getWidth() || newCanvasSize.height != getCurrentImage().getHeight()) {
+//			System.out.println("resizing");
+////			resizeCanvas(newCanvasSize);
+//		}
+//		Graphics g = getCurrentImage().getGraphics();
+//		g.drawImage(selectedImage, selectedRectangle.x, selectedRectangle.y, selectedRectangle.width+1, selectedRectangle.height+1, null);
+//		g.dispose();
+//		resetSelection();
+////		history.pushVersion();
+//		repaint();
 	}
 	
 	public void resetSelection() {
-		startedSelection = null;
-		selectedImage = null;
-		selectedRectangle = null;
+//		startedSelection = null;
+//		selectedImage = null;
+//		selectedRectangle = null;
 	}
 	
 	public Point getPixelPosition(Point screenPos) {
@@ -738,20 +727,22 @@ public class ImagePanel extends JPanel {
 	}
 
 	public BufferedImage getCurrentImage() {
-		return history.getCurrent();
+		return layers.compose();
 	}
 
-	public void setImage(BufferedImage image) {
-		history.setInitialImage(Utils.copyImage(image));
+	public void addImageLayer(BufferedImage image) {
+		layers.add(image);
 		repaint();
 	}
 	
 	private void resetView() {
-		double xfit = 1.0*getWidth()/history.getCurrent().getWidth();
-		double yfit = 1.0*getHeight()/history.getCurrent().getHeight();
+		Rectangle bounds = layers.getBoundingRect();
+		
+		double xfit = 1.0*getWidth()/bounds.width;
+		double yfit = 1.0*getHeight()/bounds.height;
 		pixelSize = Math.min(xfit, yfit) * 0.95;
-		xOffset = (int) (getWidth()/2 - pixelSize * history.getCurrent().getWidth()/2);
-		yOffset = (int) (getHeight()/2 - pixelSize * history.getCurrent().getHeight()/2);
+		xOffset = (int) (getWidth()/2 - pixelSize * bounds.width/2 - pixelSize*bounds.x);
+		yOffset = (int) (getHeight()/2 - pixelSize * bounds.height/2 - pixelSize*bounds.y);
 		repaint();
 	}
 	
@@ -765,74 +756,74 @@ public class ImagePanel extends JPanel {
 	}
 	
 	private void brush(Point lowerBound, Point upperBound, BrushShape shape, Color setTo) {
-		int centerx = (upperBound.x + lowerBound.x)/2;
-		int centery = (upperBound.y + lowerBound.y)/2;
-		int radius = (upperBound.x - lowerBound.x)/2;
-		int maxdistance = radius*radius;
-		for(int i = lowerBound.x; i <= upperBound.x; i++) {
-			for(int j = lowerBound.y; j <= upperBound.y; j++) {
-				if(shape == BrushShape.CIRCLE) {
-					double distance = (i - centerx)*(i - centerx) 
-							+ (j - centery)*(j - centery);
-					if(distance > maxdistance) {
-						continue;
-					}
-				}
-				history.getCurrent().setRGB(i, j, setTo.getRGB());
-			}
-		}
+//		int centerx = (upperBound.x + lowerBound.x)/2;
+//		int centery = (upperBound.y + lowerBound.y)/2;
+//		int radius = (upperBound.x - lowerBound.x)/2;
+//		int maxdistance = radius*radius;
+//		for(int i = lowerBound.x; i <= upperBound.x; i++) {
+//			for(int j = lowerBound.y; j <= upperBound.y; j++) {
+//				if(shape == BrushShape.CIRCLE) {
+//					double distance = (i - centerx)*(i - centerx) 
+//							+ (j - centery)*(j - centery);
+//					if(distance > maxdistance) {
+//						continue;
+//					}
+//				}
+//				history.getCurrent().setRGB(i, j, setTo.getRGB());
+//			}
+//		}
 	}
 	private void fill(Point lowerBound, Point upperBound, Color setTo) {
-		HashSet<Integer> colors = new HashSet<>();
-		HashSet<Pixel> visited = new HashSet<>();
-		LinkedList<Pixel> search = new LinkedList<Pixel>();
-		for(int i = lowerBound.x; i <= upperBound.x; i++) {
-			for(int j = lowerBound.y; j <= upperBound.y; j++) {
-				Pixel start = new Pixel(i, j);
-				search.add(start);
-				colors.add(history.getCurrent().getRGB(i, j));
-				visited.add(start);
-			}
-		}
-		while (!search.isEmpty()) {
-			Pixel pixel = search.removeFirst();
-			history.getCurrent().setRGB(pixel.x, pixel.y, setTo.getRGB());
-//			setSelected(pixel.x, pixel.y, setTo);
-			for(Pixel neighbor : getNeighbors(pixel)) {
-				if(!visited.contains(neighbor) && neighbor.x >= 0 && neighbor.y >= 0 && neighbor.x < history.getCurrent().getWidth() && neighbor.y < history.getCurrent().getHeight()) {
-					visited.add(neighbor);
-					if (colors.contains(history.getCurrent().getRGB(neighbor.x, neighbor.y))) {
-						search.add(neighbor);
-					}
-				}
-			}
-		}
+//		HashSet<Integer> colors = new HashSet<>();
+//		HashSet<Pixel> visited = new HashSet<>();
+//		LinkedList<Pixel> search = new LinkedList<Pixel>();
+//		for(int i = lowerBound.x; i <= upperBound.x; i++) {
+//			for(int j = lowerBound.y; j <= upperBound.y; j++) {
+//				Pixel start = new Pixel(i, j);
+//				search.add(start);
+//				colors.add(history.getCurrent().getRGB(i, j));
+//				visited.add(start);
+//			}
+//		}
+//		while (!search.isEmpty()) {
+//			Pixel pixel = search.removeFirst();
+//			history.getCurrent().setRGB(pixel.x, pixel.y, setTo.getRGB());
+////			setSelected(pixel.x, pixel.y, setTo);
+//			for(Pixel neighbor : getNeighbors(pixel)) {
+//				if(!visited.contains(neighbor) && neighbor.x >= 0 && neighbor.y >= 0 && neighbor.x < history.getCurrent().getWidth() && neighbor.y < history.getCurrent().getHeight()) {
+//					visited.add(neighbor);
+//					if (colors.contains(history.getCurrent().getRGB(neighbor.x, neighbor.y))) {
+//						search.add(neighbor);
+//					}
+//				}
+//			}
+//		}
 	}
 
 	private void matchColorDraw(Point lowerBound, Point upperBound, Color setTo) {
-		HashSet<Integer> colors = new HashSet<>();
-		for(int i = lowerBound.x; i <= upperBound.x; i++) {
-			for(int j = lowerBound.y; j <= upperBound.y; j++) {
-				colors.add(history.getCurrent().getRGB(i, j));
-			}
-		}
-		if(colors.isEmpty()) {
-			return;
-		}
-		for (int i = 0; i < history.getCurrent().getWidth(); i++) {
-			for (int j = 0; j < history.getCurrent().getHeight(); j++) {
-				if(colors.contains(history.getCurrent().getRGB(i, j))) {
-					history.getCurrent().setRGB(i, j, setTo.getRGB());
-				}
-			}
-		}
+//		HashSet<Integer> colors = new HashSet<>();
+//		for(int i = lowerBound.x; i <= upperBound.x; i++) {
+//			for(int j = lowerBound.y; j <= upperBound.y; j++) {
+//				colors.add(history.getCurrent().getRGB(i, j));
+//			}
+//		}
+//		if(colors.isEmpty()) {
+//			return;
+//		}
+//		for (int i = 0; i < history.getCurrent().getWidth(); i++) {
+//			for (int j = 0; j < history.getCurrent().getHeight(); j++) {
+//				if(colors.contains(history.getCurrent().getRGB(i, j))) {
+//					history.getCurrent().setRGB(i, j, setTo.getRGB());
+//				}
+//			}
+//		}
 	}
 	
-	public Color getColor1() {
-		return color1;
+	public Color getMainColor() {
+		return brush.getColor();
 	}
-	public Color getColor2() {
-		return color2;
+	public Color getAltColor() {
+		return altColor;
 	}
 	
 	public Point pixelPositionToDrawingPosition(Point pixel) {
@@ -846,40 +837,70 @@ public class ImagePanel extends JPanel {
 		g.setColor(Color.black);
 		g.fillRect(0, 0, getWidth(), getHeight());
 		
+		g.setColor(Color.white);
+		g.drawLine(xOffset, 0, xOffset, getHeight());
+		g.drawString("0", xOffset + 2, getHeight() - 2);
+		g.drawLine(0, yOffset, getWidth(), yOffset);
+		g.drawString("0", getWidth() - 10, yOffset - 2);
+		
 		Graphics2D g2d = (Graphics2D)g;
+		
 		int strokeSize = 2;
 		g2d.setStroke(new BasicStroke(strokeSize));
 		
 		g.translate(xOffset, yOffset);
-		int canvasWidth = (int)(history.getCurrent().getWidth()*pixelSize);
-		int canvasHeight = (int)(history.getCurrent().getHeight()*pixelSize);
-		int stripeWidth = 10;
-		for (int i = 0; i < canvasWidth; i += stripeWidth) {
-			int c = Math.min(Math.max(i + xOffset + i%(i%10 + 1), 0), getWidth());
-			g.setColor(new Color((int) (c * 255 / getWidth()),
-					(int) (c * 255 / getWidth() ),
-					(int) (c * 255 / getWidth())));
-			int width = i + stripeWidth > canvasWidth ? canvasWidth - i : stripeWidth;
-			g.fillRect(i, 0, width, canvasHeight);
-		}
 
-		if(showTiling) {
-			g.drawImage(history.getCurrent(), 0, -canvasHeight, canvasWidth, canvasHeight, null);
-			g.drawImage(history.getCurrent(), 0, canvasHeight, canvasWidth, canvasHeight, null);
-			g.drawImage(history.getCurrent(), -canvasWidth, -canvasHeight/2, canvasWidth, canvasHeight, null);
-			g.drawImage(history.getCurrent(), -canvasWidth, +canvasHeight/2, canvasWidth, canvasHeight, null);
-			g.drawImage(history.getCurrent(), +canvasWidth, -canvasHeight/2, canvasWidth, canvasHeight, null);
-			g.drawImage(history.getCurrent(), +canvasWidth, +canvasHeight/2, canvasWidth, canvasHeight, null);
+		if(DriverKPaint.NEW_VERSION) {
+			Rectangle bounds = layers.getBoundingRect();
+			Rectangle scaledBounds = new Rectangle(
+					(int)(bounds.x*pixelSize), 
+					(int)(bounds.y*pixelSize), 
+					(int)(bounds.width*pixelSize),
+					(int)(bounds.height*pixelSize));
+			g.drawImage(layers.compose(), scaledBounds.x, scaledBounds.y, scaledBounds.width, scaledBounds.height, null);
+			for(Layer layer : layers.getLayers()) {
+				if(layer.shown()) {
+					int x = (int) (pixelSize*layer.x());
+					int y = (int) (pixelSize*layer.y());
+					int w = (int) (pixelSize*layer.w());
+					int h = (int) (pixelSize*layer.h());
+					g.setColor(Color.white);
+					g.drawRect(x-1, y-1, w+1, h+1);
+				}
+			}
 		}
-		g.drawImage(history.getCurrent(), 0, 0, canvasWidth, canvasHeight, null);
+		else {
+//			int canvasWidth = (int)(history.getCurrent().getWidth()*pixelSize);
+//			int canvasHeight = (int)(history.getCurrent().getHeight()*pixelSize);
+//			int stripeWidth = 10;
+//			for (int i = 0; i < canvasWidth; i += stripeWidth) {
+//				int c = Math.min(Math.max(i + xOffset + i%(i%10 + 1), 0), getWidth());
+//				g.setColor(new Color((int) (c * 255 / getWidth()),
+//						(int) (c * 255 / getWidth() ),
+//						(int) (c * 255 / getWidth())));
+//				int width = i + stripeWidth > canvasWidth ? canvasWidth - i : stripeWidth;
+//				g.fillRect(i, 0, width, canvasHeight);
+//			}
+//	
+//			if(showTiling) {
+//				g.drawImage(history.getCurrent(), 0, -canvasHeight, canvasWidth, canvasHeight, null);
+//				g.drawImage(history.getCurrent(), 0, canvasHeight, canvasWidth, canvasHeight, null);
+//				g.drawImage(history.getCurrent(), -canvasWidth, -canvasHeight/2, canvasWidth, canvasHeight, null);
+//				g.drawImage(history.getCurrent(), -canvasWidth, +canvasHeight/2, canvasWidth, canvasHeight, null);
+//				g.drawImage(history.getCurrent(), +canvasWidth, -canvasHeight/2, canvasWidth, canvasHeight, null);
+//				g.drawImage(history.getCurrent(), +canvasWidth, +canvasHeight/2, canvasWidth, canvasHeight, null);
+//			}
+//			g.drawImage(history.getCurrent(), 0, 0, canvasWidth, canvasHeight, null);
+//			
+//			int borderStrokeSize = 1;
+//			g2d.setStroke(new BasicStroke(borderStrokeSize));
+//			g.setColor(Color.white);
+//			g.drawRect(-borderStrokeSize*2, -borderStrokeSize*2, canvasWidth + borderStrokeSize*4, canvasHeight + borderStrokeSize*4);
+//			g.setColor(Color.black);
+//			g.drawRect(-borderStrokeSize, -borderStrokeSize, canvasWidth + borderStrokeSize*2, canvasHeight + borderStrokeSize*2);
+
+		}
 		
-		int borderStrokeSize = 1;
-		g2d.setStroke(new BasicStroke(borderStrokeSize));
-		g.setColor(Color.white);
-		g.drawRect(-borderStrokeSize*2, -borderStrokeSize*2, canvasWidth + borderStrokeSize*4, canvasHeight + borderStrokeSize*4);
-		g.setColor(Color.black);
-		g.drawRect(-borderStrokeSize, -borderStrokeSize, canvasWidth + borderStrokeSize*2, canvasHeight + borderStrokeSize*2);
-
 		g2d.setStroke(new BasicStroke(strokeSize));
 		
 		if(resizingCanvas != null) {
@@ -887,15 +908,15 @@ public class ImagePanel extends JPanel {
 			g.drawRect((int) (targetCanvasSize.x*pixelSize), (int) (targetCanvasSize.y*pixelSize), (int) (targetCanvasSize.width*pixelSize), (int) (targetCanvasSize.height*pixelSize));
 		}
 
-		if(selectedImage != null) {
-			g.drawImage(selectedImage, (int) (selectedRectangle.x*pixelSize)+1, (int) (selectedRectangle.y*pixelSize)+1, (int) ((selectedRectangle.width+1)*pixelSize)-1, (int) ((selectedRectangle.height+1)*pixelSize)-1, null);
-			g.setColor(new Color(255, 0, 0, 30));
-			g.fillRect((int) (selectedRectangle.x*pixelSize)+1, (int) (selectedRectangle.y*pixelSize)+1, (int) ((selectedRectangle.width+1)*pixelSize)-1, (int) ((selectedRectangle.height+1)*pixelSize)-1);
-		}
-		if(selectedRectangle != null) {
-			g.setColor(Color.red);
-			g.drawRect((int) (selectedRectangle.x*pixelSize), (int) (selectedRectangle.y*pixelSize), (int) ((selectedRectangle.width+1)*pixelSize)-1, (int) ((selectedRectangle.height+1)*pixelSize)-1);
-		}
+//		if(selectedImage != null) {
+//			g.drawImage(selectedImage, (int) (selectedRectangle.x*pixelSize)+1, (int) (selectedRectangle.y*pixelSize)+1, (int) ((selectedRectangle.width+1)*pixelSize)-1, (int) ((selectedRectangle.height+1)*pixelSize)-1, null);
+//			g.setColor(new Color(255, 0, 0, 30));
+//			g.fillRect((int) (selectedRectangle.x*pixelSize)+1, (int) (selectedRectangle.y*pixelSize)+1, (int) ((selectedRectangle.width+1)*pixelSize)-1, (int) ((selectedRectangle.height+1)*pixelSize)-1);
+//		}
+//		if(selectedRectangle != null) {
+//			g.setColor(Color.red);
+//			g.drawRect((int) (selectedRectangle.x*pixelSize), (int) (selectedRectangle.y*pixelSize), (int) ((selectedRectangle.width+1)*pixelSize)-1, (int) ((selectedRectangle.height+1)*pixelSize)-1);
+//		}
 		int indicatorBrushSize = brush.getBrushSize();
 		if(brush.getMode() == BrushMode.SELECT || brush.getMode() == BrushMode.COLOR_PICKER) {
 			indicatorBrushSize = 1;
@@ -925,9 +946,9 @@ public class ImagePanel extends JPanel {
 		if(resizingCanvas != null) {
 			infoStrings.add("New Canvas Size: " + targetCanvasSize.width + ", " + targetCanvasSize.height);
 		}
-		if(selectedRectangle != null) {
-			infoStrings.add("Selection Dims: " + selectedRectangle.x + ", " + selectedRectangle.y + ", " + (selectedRectangle.width+1) + ", " + (selectedRectangle.height+1));
-		}
+//		if(selectedRectangle != null) {
+//			infoStrings.add("Selection Dims: " + selectedRectangle.x + ", " + selectedRectangle.y + ", " + (selectedRectangle.width+1) + ", " + (selectedRectangle.height+1));
+//		}
 		g.translate(-xOffset, -yOffset);
 		g.setColor(Color.green);
 		g.setFont(DriverKPaint.MAIN_FONT);
@@ -938,20 +959,25 @@ public class ImagePanel extends JPanel {
 		}
 		infoStrings.clear();
 
-		int historyPreviewSize = 70;
-		int historyPreviewOffset = 10;
-		for(int i = 0; i < history.getHistory().size(); i++) {
-			g.drawImage(history.getHistory().get(i), getWidth() - historyPreviewOffset - historyPreviewSize, historyPreviewOffset + i*(historyPreviewOffset + historyPreviewSize), historyPreviewSize, historyPreviewSize, null);
-			g.setColor(Color.white);
-			g2d.setStroke(new BasicStroke(1));
-			g.drawRect(getWidth() - historyPreviewOffset - historyPreviewSize, historyPreviewOffset + i*(historyPreviewOffset + historyPreviewSize), historyPreviewSize, historyPreviewSize);
+//		int historyPreviewSize = 70;
+//		int historyPreviewOffset = 10;
+//		for(int i = 0; i < history.getHistory().size(); i++) {
+//			g.drawImage(history.getHistory().get(i), getWidth() - historyPreviewOffset - historyPreviewSize, historyPreviewOffset + i*(historyPreviewOffset + historyPreviewSize), historyPreviewSize, historyPreviewSize, null);
+//			g.setColor(Color.white);
+//			g2d.setStroke(new BasicStroke(1));
+//			g.drawRect(getWidth() - historyPreviewOffset - historyPreviewSize, historyPreviewOffset + i*(historyPreviewOffset + historyPreviewSize), historyPreviewSize, historyPreviewSize);
+//
+//			if(i == history.getCursor()) {
+//				g.setColor(Color.green);
+//				g2d.setStroke(new BasicStroke(3));
+//				g.drawRect(getWidth() - historyPreviewOffset*3/2 - historyPreviewSize, historyPreviewOffset/2 + i*(historyPreviewOffset + historyPreviewSize), historyPreviewSize + historyPreviewOffset, historyPreviewSize + historyPreviewOffset);
+//			}
+//		}
+	}
 
-			if(i == history.getCursor()) {
-				g.setColor(Color.green);
-				g2d.setStroke(new BasicStroke(3));
-				g.drawRect(getWidth() - historyPreviewOffset*3/2 - historyPreviewSize, historyPreviewOffset/2 + i*(historyPreviewOffset + historyPreviewSize), historyPreviewSize + historyPreviewOffset, historyPreviewSize + historyPreviewOffset);
-			}
-		}
+	@Override
+	public void update() {
+		repaint();
 	}
 
 }

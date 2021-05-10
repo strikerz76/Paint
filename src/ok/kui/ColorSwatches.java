@@ -14,10 +14,10 @@ public class ColorSwatches extends JPanel {
 		public ColorButton() {
 			this.addActionListener(e -> {
 				if((e.getModifiers() & ActionEvent.SHIFT_MASK) == ActionEvent.SHIFT_MASK) {
-					imagepanelinterface.setColor2(c);
+					imagepanelinterface.setAltColor(c);
 				}
 				else {
-					imagepanelinterface.setColor1(c);
+					imagepanelinterface.setMainColor(c);
 				}
 			});
 		}

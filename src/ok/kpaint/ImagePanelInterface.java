@@ -16,10 +16,11 @@ public interface ImagePanelInterface {
 
 	public void showTiling(boolean enabled);
 
-	public Color getColor1();
-	public Color getColor2();
-	public void setColor1(Color color1);
-	public void setColor2(Color color2);
+	public Color getMainColor();
+	public Color getAltColor();
+	public void setMainColor(Color color1);
+	public void setAltColor(Color color2);
+	public void swapColors();
 
 	public void newCanvas();
 	

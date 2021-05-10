@@ -3,7 +3,7 @@ package ok.kpaint;
 import javax.swing.*;
 
 public enum BrushMode {
-	MOVE("Move", "(m) Move: use the mouse to move and resize canvas", "resources/move.png"), 
+//	MOVE("Move", "(m) Move: use the mouse to move and resize canvas", "resources/move.png"), 
 	SELECT("Select", "(s) Select: draw a rectangle to select a section of the image", "resources/select.png"), 
 	BRUSH("Brush", "(b) Brush: draw with the mouse", "resources/brush.png"), 
 	FILL("Fill", "(f) Fill: paints all of the adjacent pixels that have matching color", "resources/fill.png"), 
