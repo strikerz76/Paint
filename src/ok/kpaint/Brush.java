@@ -4,7 +4,7 @@ import java.awt.*;
 
 public class Brush {
 
-	public static final Brush DEFAULT_BRUSH = new Brush(10, BrushShape.CIRCLE, BrushMode.BRUSH, Color.white);
+	public static final Brush DEFAULT_BRUSH = new Brush(8, BrushShape.CIRCLE, BrushMode.BRUSH, Color.white);
 	
 	private int size;
 	private BrushShape shape;

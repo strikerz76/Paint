@@ -11,7 +11,7 @@ public class Layers {
 
 	private LinkedList<LayersListener> listeners = new LinkedList<>();
 	private ArrayList<Layer> layers = new ArrayList<>();
-	private Layer active;
+	private Layer active = DUMMY;
 	
 	public Layers() {
 		
@@ -31,9 +31,6 @@ public class Layers {
 	}
 	
 	public Layer active() {
-		if(active == null) {
-			return DUMMY;
-		}
 		return active;
 	}
 	
@@ -68,7 +65,7 @@ public class Layers {
 	}
 	
 	public void draw(Vec2i pixel, Brush brush) {
-		if(active == null) {
+		if(active == DUMMY) {
 			return;
 		}
 		active.draw(pixel, brush);
@@ -95,7 +92,7 @@ public class Layers {
 	private void add(Layer layer, int index) {
 		if(index <= layers.size()) {
 			layers.add(index, layer);
-			if(active == null) {
+			if(active == DUMMY) {
 				active = layers.get(0);
 			}
 			setActive(layer);
@@ -103,7 +100,11 @@ public class Layers {
 		}
 	}
 	
-	
+	public void deleteAll() {
+		layers.clear();
+		active = DUMMY;
+		notifyListeners();
+	}
 	public void delete(Layer layer) {
 		int index = layers.indexOf(layer);
 		if(index == -1) {
