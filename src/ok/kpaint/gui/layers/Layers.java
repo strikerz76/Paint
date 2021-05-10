@@ -78,10 +78,20 @@ public class Layers {
 	public void add(BufferedImage image) {
 		Layer newLayer = new Layer(image);
 		centerLayer(newLayer);
-		add(newLayer, 0);
+		if(active != DUMMY) {
+			add(newLayer, layers.indexOf(active) + 1);
+		}
+		else {
+			add(newLayer, layers.size());
+		}
 	}
 	public void add() {
-		add(layers.size());
+		if(active != DUMMY) {
+			add(layers.indexOf(active) + 1);
+		}
+		else {
+			add(layers.size());
+		}
 	}
 	public void add(int index) {
 		Layer newLayer = new Layer();

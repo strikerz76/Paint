@@ -138,20 +138,7 @@ public class ImagePanel extends JPanel implements LayersListener {
 		this.addMouseWheelListener(new MouseWheelListener() {
 			@Override
 			public void mouseWheelMoved(MouseWheelEvent e) {
-				Vec2i pixelPosition = screenToPixel(e.getPoint());
-				pixelPosition.x = Math.max(0, Math.min(pixelPosition.x, layers.active().w()));
-				pixelPosition.y = Math.max(0, Math.min(pixelPosition.y, layers.active().h()));
-				double oldPixelSize = zoom;
-				if (e.getWheelRotation() > 0) {
-					zoom = zoom * 0.9;
-					zoom = zoom < 0.01 ? 0.01 : zoom;
-				} else {
-					zoom = zoom*1.1 + 0.1;
-				}
-				double deltaPixelSize = zoom - oldPixelSize;
-				cameraOffset.x = (int)(cameraOffset.x - deltaPixelSize * pixelPosition.x);
-				cameraOffset.y = (int)(cameraOffset.y - deltaPixelSize * pixelPosition.y);
-				repaint();
+				zoomCamera(e.getWheelRotation(), screenToPixel(e.getPoint()));
 			}
 		});
 		this.addKeyListener(new KeyAdapter() {
@@ -175,6 +162,9 @@ public class ImagePanel extends JPanel implements LayersListener {
 					}
 					else if(e.getKeyCode() == KeyEvent.VK_C) {
 						ClipboardImage.setClipboard(getCurrentImage());
+					}
+					else if(e.getKeyCode() == KeyEvent.VK_D) {
+						duplicateLayer();
 					}
 					if(e.getKeyCode() == KeyEvent.VK_Z) {
 						if(e.isShiftDown()) {
@@ -638,6 +628,19 @@ public class ImagePanel extends JPanel implements LayersListener {
 		cameraOffset.y = (int) (getHeight()/2 - zoom * bounds.height/2 - zoom*bounds.y);
 		repaint();
 	}
+	private void zoomCamera(int direction, Vec2i center) {
+		double oldPixelSize = zoom;
+		if (direction > 0) {
+			zoom = zoom * 0.9;
+			zoom = zoom < 0.01 ? 0.01 : zoom;
+		} else {
+			zoom = zoom*1.1 + 0.1;
+		}
+		double deltaPixelSize = zoom - oldPixelSize;
+		cameraOffset.x = (int)(cameraOffset.x - deltaPixelSize * center.x);
+		cameraOffset.y = (int)(cameraOffset.y - deltaPixelSize * center.y);
+		repaint();
+	}
 
 	public void resetImage(int w, int h) {
 		layers.deleteAll();
@@ -648,6 +651,9 @@ public class ImagePanel extends JPanel implements LayersListener {
 		g.dispose();
 		addImageLayer(defaultImage);
 		resetView();
+	}
+	private void duplicateLayer() {
+		layers.add(Utils.copyImage(layers.active().image()));
 	}
 	
 	private LinkedList<Vec2i> getNeighbors(Vec2i pixel) {

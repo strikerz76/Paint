@@ -8,7 +8,6 @@ TODO:
 	- ability to merge layers together
 	- ability to duplicate layer
 	- icons for the layer buttons
-	- fix zoom in/out around a point
 	- right click menu
 		- hide other layers
 		- copy just this layer to clipboard
