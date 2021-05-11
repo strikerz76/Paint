@@ -6,8 +6,8 @@ import ok.kpaint.*;
 
 public enum HandleType {
 
-	RESIZE("/resize_north.png", "/resize_north.png"),
-	STRETCH("/stretch_north.png", "/stretch_north.png"),
+	RESIZE("/resize_north.png", "/resize_northeast.png"),
+	STRETCH("/stretch_north.png", "/stretch_northeast.png"),
 	MOVE("/move.png", "/move.png")
 	;
 	

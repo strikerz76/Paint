@@ -59,17 +59,25 @@ public class Layer {
 	public Rectangle getBoundsAfterCommand(Command command) {
 		Vec2i delta = command.mouseEndPixel.subtract(command.mouseStartPixel);
 		Rectangle newSize = new Rectangle(position.x, position.y, image.getWidth(), image.getHeight());
-		if(command.handle.direction == Direction.NORTH) {
+		if(command.handle.direction == Direction.NORTH
+				|| command.handle.direction == Direction.NORTHEAST
+				|| command.handle.direction == Direction.NORTHWEST) {
 			newSize.y += delta.y;
 			newSize.height -= delta.y;
 		}
-		else if(command.handle.direction == Direction.EAST) {
+		if(command.handle.direction == Direction.EAST
+				|| command.handle.direction == Direction.NORTHEAST
+				|| command.handle.direction == Direction.SOUTHEAST) {
 			newSize.width += delta.x;
 		}
-		else if(command.handle.direction == Direction.SOUTH) {
+		if(command.handle.direction == Direction.SOUTH
+				|| command.handle.direction == Direction.SOUTHEAST
+				|| command.handle.direction == Direction.SOUTHWEST) {
 			newSize.height += delta.y;
 		}
-		else if(command.handle.direction == Direction.WEST) {
+		if(command.handle.direction == Direction.WEST
+				|| command.handle.direction == Direction.NORTHWEST
+				|| command.handle.direction == Direction.SOUTHWEST) {
 			newSize.x += delta.x;
 			newSize.width -= delta.x;
 		}

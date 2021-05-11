@@ -704,17 +704,28 @@ public class ImagePanel extends JPanel implements LayersListener {
 		int padding = 2;
 		int distance = 10;
 		int offset = padding + radius;
-		handles.put(Handle.MOVE_NORTH, new Vec2i(boundedCenter.x - offset*3, activeScreenTopLeft.y - distance - radius));
+		handles.put(Handle.MOVE_NORTH, new Vec2i((boundedCenter.x + activeScreenTopLeft.x)/2, activeScreenTopLeft.y - distance - radius));
+		handles.put(Handle.MOVE_SOUTH, new Vec2i((boundedCenter.x + activeScreenBotRight.x)/2, activeScreenBotRight.y + distance + radius));
 		
 		handles.put(Handle.RESIZE_NORTH, new Vec2i(boundedCenter.x - offset, activeScreenTopLeft.y - distance - radius));
 		handles.put(Handle.RESIZE_SOUTH, new Vec2i(boundedCenter.x - offset, activeScreenBotRight.y + distance + radius));
 		handles.put(Handle.RESIZE_EAST, new Vec2i(activeScreenBotRight.x + distance + radius, boundedCenter.y - offset));
 		handles.put(Handle.RESIZE_WEST, new Vec2i(activeScreenTopLeft.x - distance - radius, boundedCenter.y - offset));
+
+		handles.put(Handle.RESIZE_NORTHEAST, new Vec2i(activeScreenBotRight.x, activeScreenTopLeft.y - distance - radius));
+		handles.put(Handle.RESIZE_SOUTHEAST, new Vec2i(activeScreenBotRight.x, activeScreenBotRight.y + distance + radius));
+		handles.put(Handle.RESIZE_SOUTHWEST, new Vec2i(activeScreenTopLeft.x, activeScreenBotRight.y + distance + radius));
+		handles.put(Handle.RESIZE_NORTHWEST, new Vec2i(activeScreenTopLeft.x, activeScreenTopLeft.y - distance - radius));
 		
 		handles.put(Handle.STRETCH_NORTH, new Vec2i(boundedCenter.x + offset, activeScreenTopLeft.y - distance - radius));
 		handles.put(Handle.STRETCH_SOUTH, new Vec2i(boundedCenter.x + offset, activeScreenBotRight.y + distance + radius));
 		handles.put(Handle.STRETCH_EAST, new Vec2i(activeScreenBotRight.x + distance + radius, boundedCenter.y + offset));
 		handles.put(Handle.STRETCH_WEST, new Vec2i(activeScreenTopLeft.x - distance - radius, boundedCenter.y + offset));
+
+		handles.put(Handle.STRETCH_NORTHEAST, new Vec2i(activeScreenBotRight.x + distance + radius, activeScreenTopLeft.y));
+		handles.put(Handle.STRETCH_SOUTHEAST, new Vec2i(activeScreenBotRight.x + distance + radius, activeScreenBotRight.y));
+		handles.put(Handle.STRETCH_SOUTHWEST, new Vec2i(activeScreenTopLeft.x - distance - radius, activeScreenBotRight.y));
+		handles.put(Handle.STRETCH_NORTHWEST, new Vec2i(activeScreenTopLeft.x - distance - radius, activeScreenTopLeft.y));
 	}
 	
 	private void updateCursor(Vec2i mousePos) {
@@ -725,7 +736,12 @@ public class ImagePanel extends JPanel implements LayersListener {
 		}
 		else {
 			this.mouseOverHandle = false;
-			setCursor(Cursor.getPredefinedCursor(Cursor.DEFAULT_CURSOR));
+			if(brush.getMode() == BrushMode.SELECT) {
+				setCursor(Cursor.getPredefinedCursor(Cursor.CROSSHAIR_CURSOR));
+			}
+			else {
+				setCursor(Cursor.getPredefinedCursor(Cursor.DEFAULT_CURSOR));
+			}
 		}
 	}
 	private Handle isMouseInHandle(Vec2i mousePos) {
@@ -753,8 +769,8 @@ public class ImagePanel extends JPanel implements LayersListener {
 		
 		Graphics2D g2d = (Graphics2D)g;
 		
-		int strokeSize = 2;
-		g2d.setStroke(new BasicStroke(1));
+		int strokeSize = 1;
+		g2d.setStroke(new BasicStroke(strokeSize));
 		
 		g.translate(cameraOffset.x, cameraOffset.y);
 
@@ -797,10 +813,19 @@ public class ImagePanel extends JPanel implements LayersListener {
 				int miny = (int) ((pixelPosition.y - indicatorBrushSize/2) * zoom);
 				int maxx = (int) ((pixelPosition.x - indicatorBrushSize/2 + indicatorBrushSize) * zoom) - 1;
 				int maxy = (int) ((pixelPosition.y - indicatorBrushSize/2 + indicatorBrushSize) * zoom) - 1;
-				g.setColor(Color.black);
-				g.drawRect(minx, miny, maxx-minx, maxy-miny);
-				g.setColor(Color.white);
-				g.drawRect(minx + strokeSize, miny + strokeSize, maxx-minx - strokeSize*2, maxy-miny - strokeSize*2);
+				
+				if(brush.getShape() == BrushShape.CIRCLE) {
+					g.setColor(Color.black);
+					g.drawOval(minx, miny, maxx-minx, maxy-miny);
+					g.setColor(Color.white);
+					g.drawOval(minx + strokeSize, miny + strokeSize, maxx-minx - strokeSize*2, maxy-miny - strokeSize*2);
+				}
+				else if(brush.getShape() == BrushShape.SQUARE) {
+					g.setColor(Color.black);
+					g.drawRect(minx, miny, maxx-minx, maxy-miny);
+					g.setColor(Color.white);
+					g.drawRect(minx + strokeSize, miny + strokeSize, maxx-minx - strokeSize*2, maxy-miny - strokeSize*2);
+				}
 			}
 			if(DriverKPaint.DEBUG) {
 				g.setColor(Color.green);
@@ -831,13 +856,13 @@ public class ImagePanel extends JPanel implements LayersListener {
 
 		if(layers.active().shown() && inprogressCommand == null) {
 			updateHandlePositions();
-			g.setColor(Color.white);
-			g2d.setRenderingHint(RenderingHints.KEY_STROKE_CONTROL, RenderingHints.VALUE_STROKE_PURE);
-			g2d.setStroke(KUI.dashed);
+//			g.setColor(Color.white);
+//			g2d.setRenderingHint(RenderingHints.KEY_STROKE_CONTROL, RenderingHints.VALUE_STROKE_PURE);
+//			g2d.setStroke(KUI.dashed);
 			for(Entry<Handle, Vec2i> entry : handles.entrySet()) {
 				Vec2i pos = entry.getValue();
 				Handle handle = entry.getKey();
-				g.drawOval(pos.x - radius, pos.y - radius, radius*2, radius*2);
+//				g.drawOval(pos.x - radius, pos.y - radius, radius*2, radius*2);
 				g.drawImage(handle.image, pos.x - radius, pos.y - radius, radius*2, radius*2, null);
 			}
 		}
