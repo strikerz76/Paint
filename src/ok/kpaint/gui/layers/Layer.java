@@ -4,6 +4,7 @@ import java.awt.*;
 import java.awt.image.*;
 
 import ok.kpaint.*;
+import ok.kpaint.gui.*;
 
 public class Layer {
 	
@@ -27,6 +28,12 @@ public class Layer {
 		this.image = image;
 		shown = true;
 	}
+	public Layer(Layer layer) {
+		this.id = idCounter++;
+		this.image = layer.image;
+		this.shown = layer.shown;
+		this.position = layer.position;
+	}
 	
 	public void translate(Vec2i delta) {
 		position.x += delta.x;
@@ -36,6 +43,36 @@ public class Layer {
 	public void centerAround(Vec2i center) {
 		position.x = center.x - w()/2;
 		position.y = center.y - h()/2;
+	}
+	
+	public void applyCommand(Command command, Color altColor) {
+		Vec2i delta = command.mouseEndPixel.subtract(command.mouseStartPixel);
+		if(command.handle.type == HandleType.MOVE) {
+			translate(delta);
+		}
+		else {
+			Rectangle newSize = new Rectangle(position.x, position.y, image.getWidth(), image.getHeight());
+			if(command.handle.direction == Direction.NORTH) {
+				newSize.y += delta.y;
+				newSize.height -= delta.y;
+			}
+			else if(command.handle.direction == Direction.EAST) {
+				newSize.width += delta.x;
+			}
+			else if(command.handle.direction == Direction.SOUTH) {
+				newSize.height += delta.y;
+			}
+			else if(command.handle.direction == Direction.WEST) {
+				newSize.x += delta.x;
+				newSize.width -= delta.x;
+			}
+			if(command.handle.type == HandleType.RESIZE) {
+				resize(newSize, altColor);
+			}
+			else if(command.handle.type == HandleType.STRETCH) {
+				stretch(newSize);
+			}
+		}
 	}
 	
 	public void stretch(Rectangle newSize) {

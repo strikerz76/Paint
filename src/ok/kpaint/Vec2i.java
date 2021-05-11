@@ -20,6 +20,12 @@ public class Vec2i {
 		return new Vec2i(x - other.x, y - other.y);
 	}
 	
+	public double distanceTo(Vec2i other) {
+		int dx = Math.abs(x - other.x);
+		int dy = Math.abs(y - other.y);
+		return Math.sqrt(dx*dx + dy*dy);
+	}
+	
 	
 	@Override
 	public boolean equals(Object other) {

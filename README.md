@@ -12,6 +12,7 @@ TODO:
 		- copy just this layer to clipboard
 		- ability to merge layers together
 		- ability to duplicate layer
+		- flip horizontal/vertical
 	- readd fill/same color drawing
 	- undo/redo on drawing as well as move/resize/stretch actions
 	

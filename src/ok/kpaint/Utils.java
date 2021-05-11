@@ -97,10 +97,14 @@ public class Utils {
 	
 	public static final ImageIcon loadImageIconResource(String location) {
 		URL iconURL = DriverKPaint.class.getResource(location);
-		if (iconURL != null) {
-			return new ImageIcon(iconURL);
+		if (iconURL == null) {
+			System.err.println("ERROR failed to get resource URL: \"" + location + "\"");
+			return null;
 		}
-		return null;
+		return new ImageIcon(iconURL);
+	}
+	public static final BufferedImage loadImage(String location) {
+		return toBufferedImage(loadImageIconResource(location).getImage());
 	}
 	
 	public static final ImageIcon resizeImageIcon(ImageIcon icon, int width, int height) {
@@ -113,13 +117,10 @@ public class Utils {
 		if (img instanceof BufferedImage) {
 			return (BufferedImage) img;
 		}
-		// Create a buffered image with transparency
 		BufferedImage bimage = new BufferedImage(img.getWidth(null), img.getHeight(null), BufferedImage.TYPE_INT_ARGB);
-		// Draw the image on to the buffered image
 		Graphics2D bGr = bimage.createGraphics();
 		bGr.drawImage(img, 0, 0, null);
 		bGr.dispose();
-		// Return the buffered image
 		return bimage;
 	}
 
@@ -129,5 +130,17 @@ public class Utils {
 		g.drawImage(image, 0, 0, null);
 		g.dispose();
 		return copy;
+	}
+	
+	public static final BufferedImage rotateImage(BufferedImage image, int angle) {
+		BufferedImage rotated = new BufferedImage(image.getWidth(), image.getHeight(), BufferedImage.TYPE_INT_ARGB);
+		Graphics2D g = rotated.createGraphics();
+		g.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_NEAREST_NEIGHBOR);
+		g.translate(image.getWidth()/2, image.getHeight()/2);
+		g.rotate(Math.toRadians(angle));
+		g.translate(-image.getWidth()/2, -image.getHeight()/2);
+		g.drawImage(image, 0, 0, null);
+		g.dispose();
+		return rotated;
 	}
 }

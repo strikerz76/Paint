@@ -20,6 +20,8 @@ public class ImagePanel extends JPanel implements LayersListener {
 	private Vec2i cameraOffset = new Vec2i();
 	private Vec2i previousMousePosition = new Vec2i();
 	
+	
+	private Command inprogressCommand;
 	private boolean movingCamera;
 	private boolean movingLayer;
 	private Edge resizingLayer;
@@ -216,23 +218,29 @@ public class ImagePanel extends JPanel implements LayersListener {
 		this.addMouseListener(new MouseAdapter() {
 			@Override
 			public void mousePressed(MouseEvent e) {
-//				mousePosition = e.getPoint();
+				Vec2i mousePos = new Vec2i(e.getPoint());
 				mouseButtonsPressed.add(e.getButton());
 				if(e.getButton() == MouseEvent.BUTTON2 || e.getButton() == MouseEvent.BUTTON3) {
 					startMovingCanvas(e.getPoint());
 				}
-				else if(brush.getMode() == BrushMode.SELECT) {
-					resetSelection();
-//					startedSelection = e.getPoint();
-					updateSelectionRectangle(e.getPoint());
-				}
-				else if(brush.getMode() == BrushMode.COLOR_PICKER) {
-					colorPicker(screenToPixel(e.getPoint()), e.isShiftDown());
-				}
 				else {
-					draw(screenToPixel(e.getPoint()), e.isShiftDown());
+					Handle handle = isMouseInHandle(mousePos);
+					if(handle != null) {
+						inprogressCommand = new Command(layers.active(), handle, screenToPixel(mousePos));
+					}
+					else if(brush.getMode() == BrushMode.SELECT) {
+						resetSelection();
+	//					startedSelection = e.getPoint();
+						updateSelectionRectangle(e.getPoint());
+					}
+					else if(brush.getMode() == BrushMode.COLOR_PICKER) {
+						colorPicker(screenToPixel(e.getPoint()), e.isShiftDown());
+					}
+					else {
+						draw(screenToPixel(e.getPoint()), e.isShiftDown());
+					}
 				}
-				previousMousePosition = new Vec2i(e.getPoint());
+				previousMousePosition = mousePos;
 				repaint();
 			}
 
@@ -244,22 +252,23 @@ public class ImagePanel extends JPanel implements LayersListener {
 					System.out.println("finishMovingCanvas");
 					finishMovingCanvas();
 				}
-//				else if(brush.getMode() == BrushMode.MOVE) {
-//					System.out.println("finishMovingSelection & finishMovingCanvas");
-//					finishMovingSelection();
-//					finishMovingCanvas();
-//				}
-				else if(brush.getMode() == BrushMode.SELECT) {
-					System.out.println("finish selection");
-					updateSelectionRectangle(e.getPoint());
-					updateSelection();
-					guiInterface.finishedSelection();
-				}
 				else {
-//					history.pushVersion();
-					repaint();
+					if(inprogressCommand != null) {
+						inprogressCommand.layer.applyCommand(inprogressCommand, altColor);
+						// TODO add to history here
+						inprogressCommand = null;
+					}
+					else if(brush.getMode() == BrushMode.SELECT) {
+						System.out.println("finish selection");
+						updateSelectionRectangle(e.getPoint());
+						updateSelection();
+						guiInterface.finishedSelection();
+					}
+					else {
+					}
 				}
 				previousMousePosition = new Vec2i(e.getPoint());
+				repaint();
 			}
 			@Override
 			public void mouseEntered(MouseEvent e) {
@@ -275,8 +284,12 @@ public class ImagePanel extends JPanel implements LayersListener {
 		this.addMouseMotionListener(new MouseMotionListener() {
 			@Override
 			public void mouseDragged(MouseEvent e) {
+				Vec2i mousePos = new Vec2i(e.getPoint());
+				if(inprogressCommand != null) {
+					inprogressCommand.mouseEndPixel = screenToPixel(mousePos);
+				}
 				if (movingCamera || movingLayer || resizingLayer != null) {
-					updateCanvasMove(previousMousePosition, new Vec2i(e.getPoint()));
+					updateCanvasMove(previousMousePosition, mousePos);
 				}
 //				else if(movingSelection != null && movingSelection != Edge.OUTSIDE) {
 //					Point previousPos = getPixelPosition(previousMousePosition);
@@ -295,6 +308,7 @@ public class ImagePanel extends JPanel implements LayersListener {
 
 			@Override
 			public void mouseMoved(MouseEvent e) {
+				Vec2i mousePos = new Vec2i(e.getPoint());
 				int newCursorType = Cursor.DEFAULT_CURSOR;
 				if(brush.getMode() == BrushMode.SELECT) {
 					newCursorType = Cursor.CROSSHAIR_CURSOR;
@@ -316,7 +330,8 @@ public class ImagePanel extends JPanel implements LayersListener {
 //				}
 //				}
 				ImagePanel.this.setCursor(new Cursor(newCursorType));
-				previousMousePosition = new Vec2i(e.getPoint());
+				updateHandleCursor(mousePos);
+				previousMousePosition = mousePos;
 				repaint();
 			}
 		});
@@ -738,7 +753,7 @@ public class ImagePanel extends JPanel implements LayersListener {
 		return altColor;
 	}
 	
-	private HashMap<Direction, Vec2i> resizeHandles = new HashMap<>();
+	private HashMap<Handle, Vec2i> handles = new HashMap<>();
 	int radius = 16;
 	private void updateHandlePositions() {
 		Vec2i activeScreenTopLeft = pixelToScreen(new Vec2i(layers.active().x(), layers.active().y()));
@@ -749,37 +764,35 @@ public class ImagePanel extends JPanel implements LayersListener {
 		Vec2i boundedCenter = new Vec2i((boundedTopLeft.x + boundedBotRight.x)/2, (boundedTopLeft.y + boundedBotRight.y)/2);
 
 		int radius = 16;
-		int padding = 5;
+		int padding = 2;
 		int distance = 10;
-		resizeHandles.put(Direction.NORTH, new Vec2i(boundedCenter.x, activeScreenTopLeft.y - distance - radius));
-		resizeHandles.put(Direction.SOUTH, new Vec2i(boundedCenter.x, activeScreenBotRight.y + distance + radius));
-		resizeHandles.put(Direction.EAST, new Vec2i(activeScreenBotRight.x + distance + radius, boundedCenter.y));
-		resizeHandles.put(Direction.WEST, new Vec2i(activeScreenTopLeft.x - distance - radius, boundedCenter.y));
+		handles.put(new Handle(HandleType.RESIZE, Direction.NORTH), new Vec2i(boundedCenter.x - padding - radius, activeScreenTopLeft.y - distance - radius));
+		handles.put(new Handle(HandleType.RESIZE, Direction.SOUTH), new Vec2i(boundedCenter.x - padding - radius, activeScreenBotRight.y + distance + radius));
+		handles.put(new Handle(HandleType.RESIZE, Direction.EAST), new Vec2i(activeScreenBotRight.x + distance + radius, boundedCenter.y - padding - radius));
+		handles.put(new Handle(HandleType.RESIZE, Direction.WEST), new Vec2i(activeScreenTopLeft.x - distance - radius, boundedCenter.y - padding - radius));
 		
-//		
-//		
-//		g.drawOval(activeScreenTopLeft.x-distance - radius, boundedCenter.y - radius/2 - padding - radius, radius, radius);
-//		g.drawOval(activeScreenTopLeft.x-distance - radius, boundedCenter.y - radius/2, radius, radius);
-//		g.drawOval(activeScreenTopLeft.x-distance - radius, boundedCenter.y + radius/2 + padding, radius, radius);
-//		
-//		g.drawOval(activeScreenBotRight.x+distance, boundedCenter.y - radius/2 - padding - radius, radius, radius);
-//		g.drawOval(activeScreenBotRight.x+distance, boundedCenter.y - radius/2, radius, radius);
-//		g.drawOval(activeScreenBotRight.x+distance, boundedCenter.y + radius/2 + padding, radius, radius);
-//
-//
-//		g.drawOval(boundedCenter.x - radius/2 - padding - radius, activeScreenTopLeft.y - distance - radius, radius, radius);
-//		g.drawOval(boundedCenter.x - radius/2, activeScreenTopLeft.y - distance - radius, radius, radius);
-//		g.drawOval(boundedCenter.x + radius/2 + padding, activeScreenTopLeft.y - distance - radius, radius, radius);
-//		
-//		g.drawOval(boundedCenter.x - radius/2 - padding - radius, activeScreenBotRight.y + distance, radius, radius);
-//		g.drawOval(boundedCenter.x - radius/2, activeScreenBotRight.y + distance, radius, radius);
-//		g.drawOval(boundedCenter.x + radius/2 + padding, activeScreenBotRight.y + distance, radius, radius);
-//
-//		g.drawOval(activeScreenTopLeft.x - distance - radius, activeScreenTopLeft.y - distance - radius, radius, radius);
-//		g.drawOval(activeScreenTopLeft.x - distance - radius, activeScreenBotRight.y + distance, radius, radius);
-//		g.drawOval(activeScreenBotRight.x + distance, activeScreenBotRight.y + distance, radius, radius);
-//		g.drawOval(activeScreenBotRight.x + distance, activeScreenTopLeft.y - distance - radius, radius, radius);
-//	
+		handles.put(new Handle(HandleType.STRETCH, Direction.NORTH), new Vec2i(boundedCenter.x + padding + radius, activeScreenTopLeft.y - distance - radius));
+		handles.put(new Handle(HandleType.STRETCH, Direction.SOUTH), new Vec2i(boundedCenter.x + padding + radius, activeScreenBotRight.y + distance + radius));
+		handles.put(new Handle(HandleType.STRETCH, Direction.EAST), new Vec2i(activeScreenBotRight.x + distance + radius, boundedCenter.y + padding + radius));
+		handles.put(new Handle(HandleType.STRETCH, Direction.WEST), new Vec2i(activeScreenTopLeft.x - distance - radius, boundedCenter.y + padding + radius));
+		
+	}
+	
+	private void updateHandleCursor(Vec2i mousePos) {
+		Handle handle = isMouseInHandle(mousePos);
+		if(handle != null) {
+			ImagePanel.this.setCursor(handle.cursor);
+		}
+	}
+	private Handle isMouseInHandle(Vec2i mousePos) {
+		for(Entry<Handle, Vec2i> entry : handles.entrySet()) {
+			Vec2i pos = entry.getValue();
+			Handle handle = entry.getKey();
+			if(mousePos.distanceTo(pos) <= radius) {
+				return handle;
+			}
+		}
+		return null;
 	}
 
 	@Override
@@ -917,9 +930,12 @@ public class ImagePanel extends JPanel implements LayersListener {
 			
 			updateHandlePositions();
 			g.setColor(Color.white);
-			for(Entry<Direction, Vec2i> entry : resizeHandles.entrySet()) {
+			g2d.setStroke(new BasicStroke(1));
+			for(Entry<Handle, Vec2i> entry : handles.entrySet()) {
 				Vec2i pos = entry.getValue();
-				g.drawOval(pos.x - radius, pos.y - radius, radius*2, radius*2);
+				Handle handle = entry.getKey();
+//				g.drawOval(pos.x - radius, pos.y - radius, radius*2, radius*2);
+				g.drawImage(handle.image, pos.x - radius, pos.y - radius, radius*2, radius*2, null);
 			}
 //			Vec2i activeScreenTopLeft = pixelToScreen(new Vec2i(layers.active().x(), layers.active().y()));
 //			Vec2i activeScreenBotRight = pixelToScreen(new Vec2i(layers.active().x() + layers.active().w(),
