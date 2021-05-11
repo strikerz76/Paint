@@ -56,6 +56,25 @@ public class Layer {
 		}
 	}
 	
+	public Rectangle getBoundsAfterCommand(Command command) {
+		Vec2i delta = command.mouseEndPixel.subtract(command.mouseStartPixel);
+		Rectangle newSize = new Rectangle(position.x, position.y, image.getWidth(), image.getHeight());
+		if(command.handle.direction == Direction.NORTH) {
+			newSize.y += delta.y;
+			newSize.height -= delta.y;
+		}
+		else if(command.handle.direction == Direction.EAST) {
+			newSize.width += delta.x;
+		}
+		else if(command.handle.direction == Direction.SOUTH) {
+			newSize.height += delta.y;
+		}
+		else if(command.handle.direction == Direction.WEST) {
+			newSize.x += delta.x;
+			newSize.width -= delta.x;
+		}
+		return newSize;
+	}
 	/**
 	 * 	this is called when a command is completed (usually when mouse is released)
 	 */
@@ -65,21 +84,7 @@ public class Layer {
 			translate(delta);
 		}
 		else {
-			Rectangle newSize = new Rectangle(position.x, position.y, image.getWidth(), image.getHeight());
-			if(command.handle.direction == Direction.NORTH) {
-				newSize.y += delta.y;
-				newSize.height -= delta.y;
-			}
-			else if(command.handle.direction == Direction.EAST) {
-				newSize.width += delta.x;
-			}
-			else if(command.handle.direction == Direction.SOUTH) {
-				newSize.height += delta.y;
-			}
-			else if(command.handle.direction == Direction.WEST) {
-				newSize.x += delta.x;
-				newSize.width -= delta.x;
-			}
+			Rectangle newSize = getBoundsAfterCommand(command);
 			if(command.handle.type == HandleType.RESIZE) {
 				resize(newSize, altColor);
 			}

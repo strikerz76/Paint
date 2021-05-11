@@ -24,9 +24,6 @@ public class ImagePanel extends JPanel implements LayersListener {
 	
 	private Command inprogressCommand;
 	private boolean movingCamera;
-	private boolean movingLayer;
-	private Edge resizingLayer;
-	private Rectangle targetLayerSize = new Rectangle();
 	private HashSet<Integer> mouseButtonsPressed = new HashSet<>();
 	private boolean mouseOverHandle = false;
 
@@ -287,7 +284,7 @@ public class ImagePanel extends JPanel implements LayersListener {
 			@Override
 			public void mouseDragged(MouseEvent e) {
 				Vec2i mousePos = new Vec2i(e.getPoint());
-				if (movingCamera || movingLayer || resizingLayer != null) {
+				if (movingCamera) {
 					updateCanvasMove(previousMousePosition, mousePos);
 				}
 				else {
@@ -309,28 +306,12 @@ public class ImagePanel extends JPanel implements LayersListener {
 			@Override
 			public void mouseMoved(MouseEvent e) {
 				Vec2i mousePos = new Vec2i(e.getPoint());
-				int newCursorType = Cursor.DEFAULT_CURSOR;
-				if(brush.getMode() == BrushMode.SELECT) {
-					newCursorType = Cursor.CROSSHAIR_CURSOR;
-				}
-				Rectangle canvasRect = getCanvasScreenRectangle();
-//				if(brush.getMode() == BrushMode.MOVE) {
-					Edge canvasEdge = Utils.isNearEdge(e.getPoint(), canvasRect);
-					if(canvasEdge != Edge.OUTSIDE && canvasEdge != Edge.INSIDE) {
-						newCursorType = canvasEdge.getCursorType();
-					}
+//				int newCursorType = Cursor.DEFAULT_CURSOR;
+//				if(brush.getMode() == BrushMode.SELECT) {
+//					newCursorType = Cursor.CROSSHAIR_CURSOR;
 //				}
-//				if(brush.getMode() == BrushMode.MOVE && selectedRectangle != null) {
-//				if(brush.getMode() == BrushMode.MOVE && selectedRectangle != null) {
-//					Rectangle selectionRect = getSelectionScreenRectangle();
-//					Edge selectionEdge = Utils.isNearEdge(e.getPoint(), selectionRect);
-//					if(selectionEdge != Edge.OUTSIDE) {
-//						newCursorType = selectionEdge.getCursorType();
-//					}
-//				}
-//				}
-				ImagePanel.this.setCursor(Cursor.getPredefinedCursor(newCursorType));
-				updateHandleCursor(mousePos);
+//				ImagePanel.this.setCursor(Cursor.getPredefinedCursor(newCursorType));
+				updateCursor(mousePos);
 				previousMousePosition = mousePos;
 				repaint();
 			}
@@ -371,17 +352,6 @@ public class ImagePanel extends JPanel implements LayersListener {
 			movingCamera = true;
 			ImagePanel.this.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
 		}
-//		else if(edge == Edge.INSIDE) {
-//			movingLayer = true;
-//			ImagePanel.this.setCursor(Cursor.getPredefinedCursor(Cursor.MOVE_CURSOR));
-//		}
-		else {
-			targetLayerSize.x = layers.active().x();
-			targetLayerSize.y = layers.active().y();
-			targetLayerSize.width = layers.active().w();
-			targetLayerSize.height = layers.active().h();
-			resizingLayer = edge;
-		}
 	}
 	
 	private void updateCanvasMove(Vec2i previousMouse, Vec2i newMouse) {
@@ -392,43 +362,10 @@ public class ImagePanel extends JPanel implements LayersListener {
 			cameraOffset.x += newMouse.x - previousMouse.x;
 			cameraOffset.y += newMouse.y - previousMouse.y;
 		}
-		else if(movingLayer) {
-			layers.active().translate(deltaPixel);
-		}
-		else if(resizingLayer != null) {
-			if(resizingLayer == Edge.EAST) {
-				targetLayerSize.width += newPixel.x - previousPixel.x;
-				targetLayerSize.width = Math.max(targetLayerSize.width, 1);
-			}
-			else if(resizingLayer == Edge.WEST) {
-				int deltaWidth = previousPixel.x - newPixel.x;
-				deltaWidth = Math.max(deltaWidth, -(targetLayerSize.width) + 1);
-				targetLayerSize.width += deltaWidth;
-				targetLayerSize.x -= deltaWidth;
-			}
-			else if(resizingLayer == Edge.SOUTH) {
-				targetLayerSize.height += newPixel.y - previousPixel.y;
-				targetLayerSize.height = Math.max(targetLayerSize.height, 1);
-			}
-			else if(resizingLayer == Edge.NORTH) {
-				int deltaHeight = previousPixel.y - newPixel.y;
-				deltaHeight = Math.max(deltaHeight, -(targetLayerSize.height) + 1);
-				targetLayerSize.height += deltaHeight;
-				targetLayerSize.y -= deltaHeight;
-			}
-		}
 	}
 	
 	private void finishMovingCanvas() {
 		movingCamera = false;
-		movingLayer = false;
-		if(resizingLayer != null) {
-			layers.active().resize(targetLayerSize, altColor);
-//			resizeCanvas(targetCanvasSize);
-//			history.pushVersion();
-			repaint();
-		}
-		resizingLayer = null;
 	}
 	
 	public void setGUIInterface(GUIInterface guiInterface) {
@@ -780,14 +717,15 @@ public class ImagePanel extends JPanel implements LayersListener {
 		handles.put(Handle.STRETCH_WEST, new Vec2i(activeScreenTopLeft.x - distance - radius, boundedCenter.y + offset));
 	}
 	
-	private void updateHandleCursor(Vec2i mousePos) {
+	private void updateCursor(Vec2i mousePos) {
 		Handle handle = isMouseInHandle(mousePos);
 		if(handle != null) {
-			ImagePanel.this.setCursor(handle.cursor);
 			this.mouseOverHandle = true;
+			setCursor(handle.cursor);
 		}
 		else {
 			this.mouseOverHandle = false;
+			setCursor(Cursor.getPredefinedCursor(Cursor.DEFAULT_CURSOR));
 		}
 	}
 	private Handle isMouseInHandle(Vec2i mousePos) {
@@ -816,18 +754,20 @@ public class ImagePanel extends JPanel implements LayersListener {
 		Graphics2D g2d = (Graphics2D)g;
 		
 		int strokeSize = 2;
-		g2d.setStroke(new BasicStroke(strokeSize));
+		g2d.setStroke(new BasicStroke(1));
 		
 		g.translate(cameraOffset.x, cameraOffset.y);
 
 		if(DriverKPaint.NEW_VERSION) {
-			Rectangle bounds = layers.getBoundingRect();
-			Rectangle scaledBounds = new Rectangle(
-					(int)(bounds.x*zoom), 
-					(int)(bounds.y*zoom), 
-					(int)(bounds.width*zoom),
-					(int)(bounds.height*zoom));
-			g.drawImage(layers.compose(), scaledBounds.x, scaledBounds.y, scaledBounds.width, scaledBounds.height, null);
+			for(Layer layer : layers.getLayers()) {
+				if(layer.shown()) {
+					int x = (int) (zoom*layer.x());
+					int y = (int) (zoom*layer.y());
+					int w = (int) (zoom*layer.w());
+					int h = (int) (zoom*layer.h());
+					g.drawImage(layer.image(), x, y, w, h, null);
+				}
+			}
 			for(Layer layer : layers.getLayers()) {
 				if(layer.shown()) {
 					int x = (int) (zoom*layer.x());
@@ -838,63 +778,21 @@ public class ImagePanel extends JPanel implements LayersListener {
 					g.drawRect(x-1, y-1, w+1, h+1);
 				}
 			}
-			
-		}
-		else {
-//			int canvasWidth = (int)(history.getCurrent().getWidth()*pixelSize);
-//			int canvasHeight = (int)(history.getCurrent().getHeight()*pixelSize);
-//			int stripeWidth = 10;
-//			for (int i = 0; i < canvasWidth; i += stripeWidth) {
-//				int c = Math.min(Math.max(i + xOffset + i%(i%10 + 1), 0), getWidth());
-//				g.setColor(new Color((int) (c * 255 / getWidth()),
-//						(int) (c * 255 / getWidth() ),
-//						(int) (c * 255 / getWidth())));
-//				int width = i + stripeWidth > canvasWidth ? canvasWidth - i : stripeWidth;
-//				g.fillRect(i, 0, width, canvasHeight);
-//			}
-//	
-//			if(showTiling) {
-//				g.drawImage(history.getCurrent(), 0, -canvasHeight, canvasWidth, canvasHeight, null);
-//				g.drawImage(history.getCurrent(), 0, canvasHeight, canvasWidth, canvasHeight, null);
-//				g.drawImage(history.getCurrent(), -canvasWidth, -canvasHeight/2, canvasWidth, canvasHeight, null);
-//				g.drawImage(history.getCurrent(), -canvasWidth, +canvasHeight/2, canvasWidth, canvasHeight, null);
-//				g.drawImage(history.getCurrent(), +canvasWidth, -canvasHeight/2, canvasWidth, canvasHeight, null);
-//				g.drawImage(history.getCurrent(), +canvasWidth, +canvasHeight/2, canvasWidth, canvasHeight, null);
-//			}
-//			g.drawImage(history.getCurrent(), 0, 0, canvasWidth, canvasHeight, null);
-//			
-//			int borderStrokeSize = 1;
-//			g2d.setStroke(new BasicStroke(borderStrokeSize));
-//			g.setColor(Color.white);
-//			g.drawRect(-borderStrokeSize*2, -borderStrokeSize*2, canvasWidth + borderStrokeSize*4, canvasHeight + borderStrokeSize*4);
-//			g.setColor(Color.black);
-//			g.drawRect(-borderStrokeSize, -borderStrokeSize, canvasWidth + borderStrokeSize*2, canvasHeight + borderStrokeSize*2);
-
 		}
 		
-		g2d.setStroke(new BasicStroke(strokeSize));
-		
-		if(resizingLayer != null) {
+		if(inprogressCommand != null) {
 			g.setColor(Color.red);
-			g.drawRect((int) (targetLayerSize.x*zoom), (int) (targetLayerSize.y*zoom), (int) (targetLayerSize.width*zoom), (int) (targetLayerSize.height*zoom));
+			Rectangle bounds = inprogressCommand.layer.getBoundsAfterCommand(inprogressCommand);
+			g.drawRect((int) (bounds.x*zoom)-1, (int) (bounds.y*zoom)-1, (int) (bounds.width*zoom)+1, (int) (bounds.height*zoom)+1);
 		}
 
-//		if(selectedImage != null) {
-//			g.drawImage(selectedImage, (int) (selectedRectangle.x*pixelSize)+1, (int) (selectedRectangle.y*pixelSize)+1, (int) ((selectedRectangle.width+1)*pixelSize)-1, (int) ((selectedRectangle.height+1)*pixelSize)-1, null);
-//			g.setColor(new Color(255, 0, 0, 30));
-//			g.fillRect((int) (selectedRectangle.x*pixelSize)+1, (int) (selectedRectangle.y*pixelSize)+1, (int) ((selectedRectangle.width+1)*pixelSize)-1, (int) ((selectedRectangle.height+1)*pixelSize)-1);
-//		}
-//		if(selectedRectangle != null) {
-//			g.setColor(Color.red);
-//			g.drawRect((int) (selectedRectangle.x*pixelSize), (int) (selectedRectangle.y*pixelSize), (int) ((selectedRectangle.width+1)*pixelSize)-1, (int) ((selectedRectangle.height+1)*pixelSize)-1);
-//		}
 		int indicatorBrushSize = brush.getSize();
 		if(brush.getMode() == BrushMode.SELECT || brush.getMode() == BrushMode.COLOR_PICKER) {
 			indicatorBrushSize = 1;
 		}
 		if(previousMousePosition != null && (brush.getMode() == BrushMode.BRUSH || brush.getMode() == BrushMode.FILL || brush.getMode() == BrushMode.ALL_MATCHING_COLOR || brush.getMode() == BrushMode.COLOR_PICKER || brush.getMode() == BrushMode.SELECT)) {
 			Vec2i pixelPosition = screenToPixel(previousMousePosition);
-			if(!mouseOverHandle && !movingCamera && !movingLayer && resizingLayer == null) {
+			if(!mouseOverHandle && !movingCamera) {
 				int minx = (int) ((pixelPosition.x - indicatorBrushSize/2) * zoom);
 				int miny = (int) ((pixelPosition.y - indicatorBrushSize/2) * zoom);
 				int maxx = (int) ((pixelPosition.x - indicatorBrushSize/2 + indicatorBrushSize) * zoom) - 1;
@@ -916,12 +814,11 @@ public class ImagePanel extends JPanel implements LayersListener {
 		
 		infoStrings.add("Brush Size: " + brush.getSize());
 		infoStrings.add("Canvas Size: " + getCurrentImage().getWidth() + ", " + getCurrentImage().getHeight());
-		if(resizingLayer != null) {
-			infoStrings.add("New Canvas Size: " + targetLayerSize.width + ", " + targetLayerSize.height);
+		if(inprogressCommand != null) {
+			Rectangle newBounds = inprogressCommand.layer.getBoundsAfterCommand(inprogressCommand);
+			infoStrings.add("New Canvas Dims: " + newBounds.x + ", " + newBounds.x + ", " + 
+												  newBounds.width + ", " + newBounds.height);
 		}
-//		if(selectedRectangle != null) {
-//			infoStrings.add("Selection Dims: " + selectedRectangle.x + ", " + selectedRectangle.y + ", " + (selectedRectangle.width+1) + ", " + (selectedRectangle.height+1));
-//		}
 		g.translate(-cameraOffset.x, -cameraOffset.y);
 		g.setColor(Color.green);
 		g.setFont(DriverKPaint.MAIN_FONT);
@@ -932,8 +829,7 @@ public class ImagePanel extends JPanel implements LayersListener {
 		}
 		infoStrings.clear();
 
-		if(layers.active().shown()) {
-			
+		if(layers.active().shown() && inprogressCommand == null) {
 			updateHandlePositions();
 			g.setColor(Color.white);
 			g2d.setRenderingHint(RenderingHints.KEY_STROKE_CONTROL, RenderingHints.VALUE_STROKE_PURE);
@@ -944,53 +840,7 @@ public class ImagePanel extends JPanel implements LayersListener {
 				g.drawOval(pos.x - radius, pos.y - radius, radius*2, radius*2);
 				g.drawImage(handle.image, pos.x - radius, pos.y - radius, radius*2, radius*2, null);
 			}
-//			Vec2i activeScreenTopLeft = pixelToScreen(new Vec2i(layers.active().x(), layers.active().y()));
-//			Vec2i activeScreenBotRight = pixelToScreen(new Vec2i(layers.active().x() + layers.active().w(),
-//			                                                     layers.active().y() + layers.active().h()));
-//			Vec2i boundedTopLeft = new Vec2i(Math.max(activeScreenTopLeft.x, 0), Math.max(activeScreenTopLeft.y, 0));
-//			Vec2i boundedBotRight = new Vec2i(Math.min(activeScreenBotRight.x, getWidth()), Math.min(activeScreenBotRight.y, getHeight()));
-//			Vec2i boundedCenter = new Vec2i((boundedTopLeft.x + boundedBotRight.x)/2, (boundedTopLeft.y + boundedBotRight.y)/2);
-//			
-//			int radius = 32;
-//			int padding = 5;
-//			int distance = 10;
-//			g.setColor(Color.white);
-//			g.drawOval(activeScreenTopLeft.x-distance - radius, boundedCenter.y - radius/2 - padding - radius, radius, radius);
-//			g.drawOval(activeScreenTopLeft.x-distance - radius, boundedCenter.y - radius/2, radius, radius);
-//			g.drawOval(activeScreenTopLeft.x-distance - radius, boundedCenter.y + radius/2 + padding, radius, radius);
-//			
-//			g.drawOval(activeScreenBotRight.x+distance, boundedCenter.y - radius/2 - padding - radius, radius, radius);
-//			g.drawOval(activeScreenBotRight.x+distance, boundedCenter.y - radius/2, radius, radius);
-//			g.drawOval(activeScreenBotRight.x+distance, boundedCenter.y + radius/2 + padding, radius, radius);
-//	
-//	
-//			g.drawOval(boundedCenter.x - radius/2 - padding - radius, activeScreenTopLeft.y - distance - radius, radius, radius);
-//			g.drawOval(boundedCenter.x - radius/2, activeScreenTopLeft.y - distance - radius, radius, radius);
-//			g.drawOval(boundedCenter.x + radius/2 + padding, activeScreenTopLeft.y - distance - radius, radius, radius);
-//			
-//			g.drawOval(boundedCenter.x - radius/2 - padding - radius, activeScreenBotRight.y + distance, radius, radius);
-//			g.drawOval(boundedCenter.x - radius/2, activeScreenBotRight.y + distance, radius, radius);
-//			g.drawOval(boundedCenter.x + radius/2 + padding, activeScreenBotRight.y + distance, radius, radius);
-//	
-//			g.drawOval(activeScreenTopLeft.x - distance - radius, activeScreenTopLeft.y - distance - radius, radius, radius);
-//			g.drawOval(activeScreenTopLeft.x - distance - radius, activeScreenBotRight.y + distance, radius, radius);
-//			g.drawOval(activeScreenBotRight.x + distance, activeScreenBotRight.y + distance, radius, radius);
-//			g.drawOval(activeScreenBotRight.x + distance, activeScreenTopLeft.y - distance - radius, radius, radius);
 		}
-//		int historyPreviewSize = 70;
-//		int historyPreviewOffset = 10;
-//		for(int i = 0; i < history.getHistory().size(); i++) {
-//			g.drawImage(history.getHistory().get(i), getWidth() - historyPreviewOffset - historyPreviewSize, historyPreviewOffset + i*(historyPreviewOffset + historyPreviewSize), historyPreviewSize, historyPreviewSize, null);
-//			g.setColor(Color.white);
-//			g2d.setStroke(new BasicStroke(1));
-//			g.drawRect(getWidth() - historyPreviewOffset - historyPreviewSize, historyPreviewOffset + i*(historyPreviewOffset + historyPreviewSize), historyPreviewSize, historyPreviewSize);
-//
-//			if(i == history.getCursor()) {
-//				g.setColor(Color.green);
-//				g2d.setStroke(new BasicStroke(3));
-//				g.drawRect(getWidth() - historyPreviewOffset*3/2 - historyPreviewSize, historyPreviewOffset/2 + i*(historyPreviewOffset + historyPreviewSize), historyPreviewSize + historyPreviewOffset, historyPreviewSize + historyPreviewOffset);
-//			}
-//		}
 	}
 
 	@Override
