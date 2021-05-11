@@ -15,6 +15,9 @@ import ok.kui.*;
 
 public class ImagePanel extends JPanel implements LayersListener {
 	
+	private static final Color TRANSLUCENT_BORDER = new Color(255, 255, 255, 100);
+	private static final Color SELECTED_BORDER = new Color(255, 255, 255, 150);
+	
 	private LinkedList<String> infoStrings = new LinkedList<>();
 
 	private double zoom = 1;
@@ -761,40 +764,47 @@ public class ImagePanel extends JPanel implements LayersListener {
 		g.setColor(Color.black);
 		g.fillRect(0, 0, getWidth(), getHeight());
 		
-		g.setColor(Color.white);
-		g.drawLine(cameraOffset.x, 0, cameraOffset.x, getHeight());
-		g.drawString("0", cameraOffset.x + 2, getHeight() - 2);
-		g.drawLine(0, cameraOffset.y, getWidth(), cameraOffset.y);
-		g.drawString("0", getWidth() - 10, cameraOffset.y - 2);
+//		g.setColor(Color.white);
+//		g.drawLine(cameraOffset.x, 0, cameraOffset.x, getHeight()/16);
+//		g.drawLine(cameraOffset.x, getHeight()*15/16, cameraOffset.x, getHeight());
+//		g.drawString("0", cameraOffset.x + 2, getHeight() - 2);
+//		g.drawLine(0, cameraOffset.y, getWidth()/16, cameraOffset.y);
+//		g.drawLine(getWidth()*15/16, cameraOffset.y, getWidth(), cameraOffset.y);
+//		g.drawString("0", getWidth() - 10, cameraOffset.y - 2);
 		
 		Graphics2D g2d = (Graphics2D)g;
 		
 		int strokeSize = 1;
-		g2d.setStroke(new BasicStroke(strokeSize));
+		BasicStroke basicStroke = new BasicStroke(strokeSize);
+		BasicStroke dashed = new BasicStroke(1.0f,
+                                             BasicStroke.CAP_SQUARE,
+                                             BasicStroke.JOIN_MITER,
+                                             1.0f, new float[] {10}, (System.currentTimeMillis()%2000)/100f);
+		g2d.setStroke(basicStroke);
 		
 		g.translate(cameraOffset.x, cameraOffset.y);
 
-		if(DriverKPaint.NEW_VERSION) {
-			for(Layer layer : layers.getLayers()) {
-				if(layer.shown()) {
-					int x = (int) (zoom*layer.x());
-					int y = (int) (zoom*layer.y());
-					int w = (int) (zoom*layer.w());
-					int h = (int) (zoom*layer.h());
-					g.drawImage(layer.image(), x, y, w, h, null);
-				}
-			}
-			for(Layer layer : layers.getLayers()) {
-				if(layer.shown()) {
-					int x = (int) (zoom*layer.x());
-					int y = (int) (zoom*layer.y());
-					int w = (int) (zoom*layer.w());
-					int h = (int) (zoom*layer.h());
-					g.setColor(layer == layers.active() ? Color.white : Color.LIGHT_GRAY);
-					g.drawRect(x-1, y-1, w+1, h+1);
-				}
+		for(Layer layer : layers.getLayers()) {
+			if(layer.shown()) {
+				int x = (int) (zoom*layer.x());
+				int y = (int) (zoom*layer.y());
+				int w = (int) (zoom*layer.w());
+				int h = (int) (zoom*layer.h());
+				g.drawImage(layer.image(), x, y, w, h, null);
 			}
 		}
+		for(Layer layer : layers.getLayers()) {
+			if(layer.shown()) {
+				int x = (int) (zoom*layer.x());
+				int y = (int) (zoom*layer.y());
+				int w = (int) (zoom*layer.w());
+				int h = (int) (zoom*layer.h());
+				g.setColor(layer == layers.active() ? SELECTED_BORDER : TRANSLUCENT_BORDER);
+				g2d.setStroke(layer == layers.active() ? dashed : basicStroke);
+				g.drawRect(x-1, y-1, w+1, h+1);
+			}
+		}
+		g2d.setStroke(basicStroke);
 		
 		if(inprogressCommand != null) {
 			g.setColor(Color.red);
@@ -856,13 +866,13 @@ public class ImagePanel extends JPanel implements LayersListener {
 
 		if(layers.active().shown() && inprogressCommand == null) {
 			updateHandlePositions();
-//			g.setColor(Color.white);
+			g.setColor(Color.DARK_GRAY);
 //			g2d.setRenderingHint(RenderingHints.KEY_STROKE_CONTROL, RenderingHints.VALUE_STROKE_PURE);
 //			g2d.setStroke(KUI.dashed);
 			for(Entry<Handle, Vec2i> entry : handles.entrySet()) {
 				Vec2i pos = entry.getValue();
 				Handle handle = entry.getKey();
-//				g.drawOval(pos.x - radius, pos.y - radius, radius*2, radius*2);
+				g.fillOval(pos.x - radius, pos.y - radius, radius*2, radius*2);
 				g.drawImage(handle.image, pos.x - radius, pos.y - radius, radius*2, radius*2, null);
 			}
 		}

@@ -7,7 +7,8 @@ TODO:
 	- ability to choose background with default as grey squares
 	- add rotation handle
 	- hold ctrl to force axis-aligned move or to maintain aspect ratio
-	- right click menu
+	- right click menu (either directly on a LayerPanel or on the canvas and pick the first layer it overlaps)
+		- select layer
 		- hide other layers
 		- copy just this layer to clipboard
 		- ability to merge layers together
@@ -21,5 +22,7 @@ TODO:
 	- readd fill/same color drawing
 	- undo/redo on drawing as well as move/resize/stretch actions
 	- icons for brush shape selector
+	- sliding dashed outline for selected layer
+	- add repaint timer at ~10 frames/s
 	
 		

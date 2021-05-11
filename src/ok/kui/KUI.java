@@ -8,10 +8,6 @@ import javax.swing.*;
 import ok.kpaint.*;
 
 public class KUI {
-	public final static BasicStroke dashed = new BasicStroke(1.0f,
-	                                                  BasicStroke.CAP_BUTT,
-	                                                  BasicStroke.JOIN_MITER,
-	                                                  10.0f, new float[] {1, 4}, 0.0f);
 	
 	public static void setupJComponent(JComponent component, String tooltip, ImageIcon icon) {
 		component.setToolTipText(tooltip);
