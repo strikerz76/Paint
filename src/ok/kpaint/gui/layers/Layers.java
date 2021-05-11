@@ -121,7 +121,7 @@ public class Layers {
 			return;
 		}
 		layers.remove(layer);
-		if(layer == active) {
+		if(layer == active && !layers.isEmpty()) {
 			if(index >= layers.size()) {
 				index--;
 			}

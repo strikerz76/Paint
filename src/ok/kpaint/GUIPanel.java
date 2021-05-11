@@ -102,7 +102,7 @@ public class GUIPanel extends JPanel {
 	private void createGUIElements(boolean withTitles) {
 		setupModeButtons(withTitles);
 
-		openFile = KUI.setupKButton(withTitles ? "Open File" : "", "Open File", "resources/open.png");
+		openFile = KUI.setupKButton(withTitles ? "Open File" : "", "Open File", "/open.png");
 		openFile.addActionListener(new ActionListener() {
 			@Override
 			public void actionPerformed(ActionEvent arg0) {
@@ -110,7 +110,7 @@ public class GUIPanel extends JPanel {
 			}
 		});
 
-		saveFile = KUI.setupKButton(withTitles ? "Save File" : "", "(Ctrl S) Save File", "resources/save.png");
+		saveFile = KUI.setupKButton(withTitles ? "Save File" : "", "(Ctrl S) Save File", "/save.png");
 		saveFile.addActionListener(new ActionListener() {
 			@Override
 			public void actionPerformed(ActionEvent e) {
@@ -119,7 +119,7 @@ public class GUIPanel extends JPanel {
 		});
 
 
-		newFile = KUI.setupKButton(withTitles ? "New Canvas" : "", "(Ctrl N) New Canvas", "resources/new_canvas.png");
+		newFile = KUI.setupKButton(withTitles ? "New Canvas" : "", "(Ctrl N) New Canvas", "/new_canvas.png");
 		newFile.addActionListener(new ActionListener() {
 			@Override
 			public void actionPerformed(ActionEvent arg0) {
@@ -128,7 +128,7 @@ public class GUIPanel extends JPanel {
 		});
 		
 		
-		undoButton = KUI.setupKButton("", "(Ctrl Z) Undo", "resources/undo.png");
+		undoButton = KUI.setupKButton("", "(Ctrl Z) Undo", "/undo.png");
 		undoButton.addActionListener(new ActionListener() {
 			@Override
 			public void actionPerformed(ActionEvent e) {
@@ -136,7 +136,7 @@ public class GUIPanel extends JPanel {
 			}
 		});
 
-		redoButton = KUI.setupKButton("", "(Ctrl Shift Z) Redo", "resources/redo.png");
+		redoButton = KUI.setupKButton("", "(Ctrl Shift Z) Redo", "/redo.png");
 		redoButton.addActionListener(new ActionListener() {
 			@Override
 			public void actionPerformed(ActionEvent e) {
@@ -144,7 +144,7 @@ public class GUIPanel extends JPanel {
 			}
 		});
 		
-		applyButton = KUI.setupKButton(withTitles ? "Apply Selection" : "", "(Esc) Apply Selection: pastes the floating selection onto the image.", "resources/apply.png");
+		applyButton = KUI.setupKButton(withTitles ? "Apply Selection" : "", "(Esc) Apply Selection: pastes the floating selection onto the image.", "/apply.png");
 		applyButton.addActionListener(new ActionListener() {
 			@Override
 			public void actionPerformed(ActionEvent e) {
@@ -152,7 +152,7 @@ public class GUIPanel extends JPanel {
 			}
 		});
 
-		toggleTiling = KUI.setupKToggleButton(withTitles ? "Tiling" : "", "Tiling: enables tiling view which draws copies of the image around it for working on seemless textures", "resources/tiling_icon.png");
+		toggleTiling = KUI.setupKToggleButton(withTitles ? "Tiling" : "", "Tiling: enables tiling view which draws copies of the image around it for working on seemless textures", "/tiling_icon.png");
 		toggleTiling.addActionListener(e -> {
 			imagePanelInterface.showTiling(toggleTiling.isSelected());
 		});
@@ -189,7 +189,7 @@ public class GUIPanel extends JPanel {
 		swatchesPanel.setFocusable(false);
 		
 		brushShape = new JComboBox<>(BrushShape.values());
-		KUI.setupJComponent(brushShape, "Changes brush shape between square and circle", Utils.resizeImageIcon(Utils.loadImageIconResource("resources/brush_shape.png"), 32, 32));
+		KUI.setupJComponent(brushShape, "Changes brush shape between square and circle", Utils.resizeImageIcon(Utils.loadImageIconResource("/brush_shape.png"), 32, 32));
 		brushShape.setSelectedItem(Brush.DEFAULT_BRUSH.getShape());
 		brushShape.addActionListener(e -> {
 			imagePanelInterface.setBrushShape((BrushShape)brushShape.getSelectedItem());

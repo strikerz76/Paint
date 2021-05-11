@@ -4,10 +4,12 @@ import java.awt.event.*;
 import java.awt.geom.*;
 import java.awt.image.*;
 import java.util.*;
+import java.util.Map.*;
 
 import javax.swing.*;
 
 import ok.kpaint.Utils.*;
+import ok.kpaint.gui.*;
 import ok.kpaint.gui.layers.*;
 
 public class ImagePanel extends JPanel implements LayersListener {
@@ -735,6 +737,50 @@ public class ImagePanel extends JPanel implements LayersListener {
 	public Color getAltColor() {
 		return altColor;
 	}
+	
+	private HashMap<Direction, Vec2i> resizeHandles = new HashMap<>();
+	int radius = 16;
+	private void updateHandlePositions() {
+		Vec2i activeScreenTopLeft = pixelToScreen(new Vec2i(layers.active().x(), layers.active().y()));
+		Vec2i activeScreenBotRight = pixelToScreen(new Vec2i(layers.active().x() + layers.active().w(),
+		                                                     layers.active().y() + layers.active().h()));
+		Vec2i boundedTopLeft = new Vec2i(Math.max(activeScreenTopLeft.x, 0), Math.max(activeScreenTopLeft.y, 0));
+		Vec2i boundedBotRight = new Vec2i(Math.min(activeScreenBotRight.x, getWidth()), Math.min(activeScreenBotRight.y, getHeight()));
+		Vec2i boundedCenter = new Vec2i((boundedTopLeft.x + boundedBotRight.x)/2, (boundedTopLeft.y + boundedBotRight.y)/2);
+
+		int radius = 16;
+		int padding = 5;
+		int distance = 10;
+		resizeHandles.put(Direction.NORTH, new Vec2i(boundedCenter.x, activeScreenTopLeft.y - distance - radius));
+		resizeHandles.put(Direction.SOUTH, new Vec2i(boundedCenter.x, activeScreenBotRight.y + distance + radius));
+		resizeHandles.put(Direction.EAST, new Vec2i(activeScreenBotRight.x + distance + radius, boundedCenter.y));
+		resizeHandles.put(Direction.WEST, new Vec2i(activeScreenTopLeft.x - distance - radius, boundedCenter.y));
+		
+//		
+//		
+//		g.drawOval(activeScreenTopLeft.x-distance - radius, boundedCenter.y - radius/2 - padding - radius, radius, radius);
+//		g.drawOval(activeScreenTopLeft.x-distance - radius, boundedCenter.y - radius/2, radius, radius);
+//		g.drawOval(activeScreenTopLeft.x-distance - radius, boundedCenter.y + radius/2 + padding, radius, radius);
+//		
+//		g.drawOval(activeScreenBotRight.x+distance, boundedCenter.y - radius/2 - padding - radius, radius, radius);
+//		g.drawOval(activeScreenBotRight.x+distance, boundedCenter.y - radius/2, radius, radius);
+//		g.drawOval(activeScreenBotRight.x+distance, boundedCenter.y + radius/2 + padding, radius, radius);
+//
+//
+//		g.drawOval(boundedCenter.x - radius/2 - padding - radius, activeScreenTopLeft.y - distance - radius, radius, radius);
+//		g.drawOval(boundedCenter.x - radius/2, activeScreenTopLeft.y - distance - radius, radius, radius);
+//		g.drawOval(boundedCenter.x + radius/2 + padding, activeScreenTopLeft.y - distance - radius, radius, radius);
+//		
+//		g.drawOval(boundedCenter.x - radius/2 - padding - radius, activeScreenBotRight.y + distance, radius, radius);
+//		g.drawOval(boundedCenter.x - radius/2, activeScreenBotRight.y + distance, radius, radius);
+//		g.drawOval(boundedCenter.x + radius/2 + padding, activeScreenBotRight.y + distance, radius, radius);
+//
+//		g.drawOval(activeScreenTopLeft.x - distance - radius, activeScreenTopLeft.y - distance - radius, radius, radius);
+//		g.drawOval(activeScreenTopLeft.x - distance - radius, activeScreenBotRight.y + distance, radius, radius);
+//		g.drawOval(activeScreenBotRight.x + distance, activeScreenBotRight.y + distance, radius, radius);
+//		g.drawOval(activeScreenBotRight.x + distance, activeScreenTopLeft.y - distance - radius, radius, radius);
+//	
+	}
 
 	@Override
 	public void paintComponent(Graphics g) {
@@ -868,38 +914,45 @@ public class ImagePanel extends JPanel implements LayersListener {
 		infoStrings.clear();
 
 		if(layers.active().shown()) {
-			Vec2i activeScreenTopLeft = pixelToScreen(new Vec2i(layers.active().x(), layers.active().y()));
-			Vec2i activeScreenBotRight = pixelToScreen(new Vec2i(layers.active().x() + layers.active().w(),
-			                                                     layers.active().y() + layers.active().h()));
-			Vec2i boundedTopLeft = new Vec2i(Math.max(activeScreenTopLeft.x, 0), Math.max(activeScreenTopLeft.y, 0));
-			Vec2i boundedBotRight = new Vec2i(Math.min(activeScreenBotRight.x, getWidth()), Math.min(activeScreenBotRight.y, getHeight()));
-			Vec2i boundedCenter = new Vec2i((boundedTopLeft.x + boundedBotRight.x)/2, (boundedTopLeft.y + boundedBotRight.y)/2);
 			
-			int radius = 32;
-			int padding = 5;
-			int distance = 10;
+			updateHandlePositions();
 			g.setColor(Color.white);
-			g.drawOval(activeScreenTopLeft.x-distance - radius, boundedCenter.y - radius/2 - padding - radius, radius, radius);
-			g.drawOval(activeScreenTopLeft.x-distance - radius, boundedCenter.y - radius/2, radius, radius);
-			g.drawOval(activeScreenTopLeft.x-distance - radius, boundedCenter.y + radius/2 + padding, radius, radius);
-			
-			g.drawOval(activeScreenBotRight.x+distance, boundedCenter.y - radius/2 - padding - radius, radius, radius);
-			g.drawOval(activeScreenBotRight.x+distance, boundedCenter.y - radius/2, radius, radius);
-			g.drawOval(activeScreenBotRight.x+distance, boundedCenter.y + radius/2 + padding, radius, radius);
-	
-	
-			g.drawOval(boundedCenter.x - radius/2 - padding - radius, activeScreenTopLeft.y - distance - radius, radius, radius);
-			g.drawOval(boundedCenter.x - radius/2, activeScreenTopLeft.y - distance - radius, radius, radius);
-			g.drawOval(boundedCenter.x + radius/2 + padding, activeScreenTopLeft.y - distance - radius, radius, radius);
-			
-			g.drawOval(boundedCenter.x - radius/2 - padding - radius, activeScreenBotRight.y + distance, radius, radius);
-			g.drawOval(boundedCenter.x - radius/2, activeScreenBotRight.y + distance, radius, radius);
-			g.drawOval(boundedCenter.x + radius/2 + padding, activeScreenBotRight.y + distance, radius, radius);
-	
-			g.drawOval(activeScreenTopLeft.x - distance - radius, activeScreenTopLeft.y - distance - radius, radius, radius);
-			g.drawOval(activeScreenTopLeft.x - distance - radius, activeScreenBotRight.y + distance, radius, radius);
-			g.drawOval(activeScreenBotRight.x + distance, activeScreenBotRight.y + distance, radius, radius);
-			g.drawOval(activeScreenBotRight.x + distance, activeScreenTopLeft.y - distance - radius, radius, radius);
+			for(Entry<Direction, Vec2i> entry : resizeHandles.entrySet()) {
+				Vec2i pos = entry.getValue();
+				g.drawOval(pos.x - radius, pos.y - radius, radius*2, radius*2);
+			}
+//			Vec2i activeScreenTopLeft = pixelToScreen(new Vec2i(layers.active().x(), layers.active().y()));
+//			Vec2i activeScreenBotRight = pixelToScreen(new Vec2i(layers.active().x() + layers.active().w(),
+//			                                                     layers.active().y() + layers.active().h()));
+//			Vec2i boundedTopLeft = new Vec2i(Math.max(activeScreenTopLeft.x, 0), Math.max(activeScreenTopLeft.y, 0));
+//			Vec2i boundedBotRight = new Vec2i(Math.min(activeScreenBotRight.x, getWidth()), Math.min(activeScreenBotRight.y, getHeight()));
+//			Vec2i boundedCenter = new Vec2i((boundedTopLeft.x + boundedBotRight.x)/2, (boundedTopLeft.y + boundedBotRight.y)/2);
+//			
+//			int radius = 32;
+//			int padding = 5;
+//			int distance = 10;
+//			g.setColor(Color.white);
+//			g.drawOval(activeScreenTopLeft.x-distance - radius, boundedCenter.y - radius/2 - padding - radius, radius, radius);
+//			g.drawOval(activeScreenTopLeft.x-distance - radius, boundedCenter.y - radius/2, radius, radius);
+//			g.drawOval(activeScreenTopLeft.x-distance - radius, boundedCenter.y + radius/2 + padding, radius, radius);
+//			
+//			g.drawOval(activeScreenBotRight.x+distance, boundedCenter.y - radius/2 - padding - radius, radius, radius);
+//			g.drawOval(activeScreenBotRight.x+distance, boundedCenter.y - radius/2, radius, radius);
+//			g.drawOval(activeScreenBotRight.x+distance, boundedCenter.y + radius/2 + padding, radius, radius);
+//	
+//	
+//			g.drawOval(boundedCenter.x - radius/2 - padding - radius, activeScreenTopLeft.y - distance - radius, radius, radius);
+//			g.drawOval(boundedCenter.x - radius/2, activeScreenTopLeft.y - distance - radius, radius, radius);
+//			g.drawOval(boundedCenter.x + radius/2 + padding, activeScreenTopLeft.y - distance - radius, radius, radius);
+//			
+//			g.drawOval(boundedCenter.x - radius/2 - padding - radius, activeScreenBotRight.y + distance, radius, radius);
+//			g.drawOval(boundedCenter.x - radius/2, activeScreenBotRight.y + distance, radius, radius);
+//			g.drawOval(boundedCenter.x + radius/2 + padding, activeScreenBotRight.y + distance, radius, radius);
+//	
+//			g.drawOval(activeScreenTopLeft.x - distance - radius, activeScreenTopLeft.y - distance - radius, radius, radius);
+//			g.drawOval(activeScreenTopLeft.x - distance - radius, activeScreenBotRight.y + distance, radius, radius);
+//			g.drawOval(activeScreenBotRight.x + distance, activeScreenBotRight.y + distance, radius, radius);
+//			g.drawOval(activeScreenBotRight.x + distance, activeScreenTopLeft.y - distance - radius, radius, radius);
 		}
 //		int historyPreviewSize = 70;
 //		int historyPreviewOffset = 10;

@@ -60,7 +60,7 @@ public class DriverKPaint {
 		frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 		frame.setLocationRelativeTo(null);
 
-		frame.setIconImage(Utils.loadImageIconResource("resources/icon.png").getImage());
+		frame.setIconImage(Utils.loadImageIconResource("/icon.png").getImage());
 		frame.setVisible(true);
 		
 		imagePanel = new ImagePanel(layers);

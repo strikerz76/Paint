@@ -50,7 +50,7 @@ public class KUI {
 		int width = 80;
 		int height = 40;
 		Image background = Utils.resizeImageIcon(
-				Utils.loadImageIconResource("resources/transparentBackground.png"), width, height).getImage();
+				Utils.loadImageIconResource("/transparentBackground.png"), width, height).getImage();
 		JButton chooseColorButton = new KBrushColorButton(text, c, background);
 		chooseColorButton.setOpaque(false);
 		chooseColorButton.setContentAreaFilled(false);
