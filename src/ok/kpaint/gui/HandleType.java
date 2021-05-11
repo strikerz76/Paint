@@ -8,7 +8,7 @@ public enum HandleType {
 
 	RESIZE("/resize_north.png", "/resize_north.png"),
 	STRETCH("/stretch_north.png", "/stretch_north.png"),
-	MOVE("/resize_north.png", "/resize_north.png")
+	MOVE("/move.png", "/move.png")
 	;
 	
 	BufferedImage sideIcon;

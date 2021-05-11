@@ -7,6 +7,19 @@ import ok.kpaint.*;
 
 public class Handle {
 	private static final Toolkit toolkit = Toolkit.getDefaultToolkit();
+
+	public static final Handle MOVE_NORTH = new Handle(HandleType.MOVE, Direction.ALL);	
+	
+	public static final Handle RESIZE_NORTH = new Handle(HandleType.RESIZE, Direction.NORTH);	
+	public static final Handle RESIZE_SOUTH = new Handle(HandleType.RESIZE, Direction.SOUTH);
+	public static final Handle RESIZE_EAST = new Handle(HandleType.RESIZE, Direction.EAST);
+	public static final Handle RESIZE_WEST = new Handle(HandleType.RESIZE, Direction.WEST);
+	
+	public static final Handle STRETCH_NORTH = new Handle(HandleType.STRETCH, Direction.NORTH);
+	public static final Handle STRETCH_SOUTH = new Handle(HandleType.STRETCH, Direction.SOUTH);
+	public static final Handle STRETCH_EAST = new Handle(HandleType.STRETCH, Direction.EAST);
+	public static final Handle STRETCH_WEST = new Handle(HandleType.STRETCH, Direction.WEST);
+	
 	
 	public final HandleType type;
 	public final Direction direction;

@@ -45,6 +45,20 @@ public class Layer {
 		position.y = center.y - h()/2;
 	}
 	
+	/**
+	 * 	this is called when state changes on a command
+	 */
+	public void updateCommand(Command inprogressCommand) {
+		Vec2i delta = inprogressCommand.mouseEndPixel.subtract(inprogressCommand.mouseStartPixel);
+		if(inprogressCommand.handle.type == HandleType.MOVE) {
+			translate(delta);
+			inprogressCommand.mouseStartPixel = inprogressCommand.mouseEndPixel;
+		}
+	}
+	
+	/**
+	 * 	this is called when a command is completed (usually when mouse is released)
+	 */
 	public void applyCommand(Command command, Color altColor) {
 		Vec2i delta = command.mouseEndPixel.subtract(command.mouseStartPixel);
 		if(command.handle.type == HandleType.MOVE) {

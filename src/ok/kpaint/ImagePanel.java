@@ -11,6 +11,7 @@ import javax.swing.*;
 import ok.kpaint.Utils.*;
 import ok.kpaint.gui.*;
 import ok.kpaint.gui.layers.*;
+import ok.kui.*;
 
 public class ImagePanel extends JPanel implements LayersListener {
 	
@@ -27,6 +28,7 @@ public class ImagePanel extends JPanel implements LayersListener {
 	private Edge resizingLayer;
 	private Rectangle targetLayerSize = new Rectangle();
 	private HashSet<Integer> mouseButtonsPressed = new HashSet<>();
+	private boolean mouseOverHandle = false;
 
 	private Brush brush = new Brush(Brush.DEFAULT_BRUSH);
 	private Color altColor = new Color(0, 0, 0, 0);
@@ -285,22 +287,20 @@ public class ImagePanel extends JPanel implements LayersListener {
 			@Override
 			public void mouseDragged(MouseEvent e) {
 				Vec2i mousePos = new Vec2i(e.getPoint());
-				if(inprogressCommand != null) {
-					inprogressCommand.mouseEndPixel = screenToPixel(mousePos);
-				}
 				if (movingCamera || movingLayer || resizingLayer != null) {
 					updateCanvasMove(previousMousePosition, mousePos);
 				}
-//				else if(movingSelection != null && movingSelection != Edge.OUTSIDE) {
-//					Point previousPos = getPixelPosition(previousMousePosition);
-//					Point newPos = getPixelPosition(e.getPoint());
-//					updateSelectionMove(previousPos, newPos);
-//				}
-				else if(brush.getMode() == BrushMode.SELECT) {
-					updateSelectionRectangle(e.getPoint());
-				}
 				else {
-					draw(screenToPixel(e.getPoint()), e.isShiftDown());
+					if(inprogressCommand != null) {
+						inprogressCommand.mouseEndPixel = screenToPixel(mousePos);
+						inprogressCommand.layer.updateCommand(inprogressCommand);
+					}
+					else if(brush.getMode() == BrushMode.SELECT) {
+						updateSelectionRectangle(e.getPoint());
+					}
+					else {
+						draw(screenToPixel(e.getPoint()), e.isShiftDown());
+					}
 				}
 				previousMousePosition = new Vec2i(e.getPoint());
 				repaint();
@@ -329,7 +329,7 @@ public class ImagePanel extends JPanel implements LayersListener {
 //					}
 //				}
 //				}
-				ImagePanel.this.setCursor(new Cursor(newCursorType));
+				ImagePanel.this.setCursor(Cursor.getPredefinedCursor(newCursorType));
 				updateHandleCursor(mousePos);
 				previousMousePosition = mousePos;
 				repaint();
@@ -766,22 +766,28 @@ public class ImagePanel extends JPanel implements LayersListener {
 		int radius = 16;
 		int padding = 2;
 		int distance = 10;
-		handles.put(new Handle(HandleType.RESIZE, Direction.NORTH), new Vec2i(boundedCenter.x - padding - radius, activeScreenTopLeft.y - distance - radius));
-		handles.put(new Handle(HandleType.RESIZE, Direction.SOUTH), new Vec2i(boundedCenter.x - padding - radius, activeScreenBotRight.y + distance + radius));
-		handles.put(new Handle(HandleType.RESIZE, Direction.EAST), new Vec2i(activeScreenBotRight.x + distance + radius, boundedCenter.y - padding - radius));
-		handles.put(new Handle(HandleType.RESIZE, Direction.WEST), new Vec2i(activeScreenTopLeft.x - distance - radius, boundedCenter.y - padding - radius));
+		int offset = padding + radius;
+		handles.put(Handle.MOVE_NORTH, new Vec2i(boundedCenter.x - offset*3, activeScreenTopLeft.y - distance - radius));
 		
-		handles.put(new Handle(HandleType.STRETCH, Direction.NORTH), new Vec2i(boundedCenter.x + padding + radius, activeScreenTopLeft.y - distance - radius));
-		handles.put(new Handle(HandleType.STRETCH, Direction.SOUTH), new Vec2i(boundedCenter.x + padding + radius, activeScreenBotRight.y + distance + radius));
-		handles.put(new Handle(HandleType.STRETCH, Direction.EAST), new Vec2i(activeScreenBotRight.x + distance + radius, boundedCenter.y + padding + radius));
-		handles.put(new Handle(HandleType.STRETCH, Direction.WEST), new Vec2i(activeScreenTopLeft.x - distance - radius, boundedCenter.y + padding + radius));
+		handles.put(Handle.RESIZE_NORTH, new Vec2i(boundedCenter.x - offset, activeScreenTopLeft.y - distance - radius));
+		handles.put(Handle.RESIZE_SOUTH, new Vec2i(boundedCenter.x - offset, activeScreenBotRight.y + distance + radius));
+		handles.put(Handle.RESIZE_EAST, new Vec2i(activeScreenBotRight.x + distance + radius, boundedCenter.y - offset));
+		handles.put(Handle.RESIZE_WEST, new Vec2i(activeScreenTopLeft.x - distance - radius, boundedCenter.y - offset));
 		
+		handles.put(Handle.STRETCH_NORTH, new Vec2i(boundedCenter.x + offset, activeScreenTopLeft.y - distance - radius));
+		handles.put(Handle.STRETCH_SOUTH, new Vec2i(boundedCenter.x + offset, activeScreenBotRight.y + distance + radius));
+		handles.put(Handle.STRETCH_EAST, new Vec2i(activeScreenBotRight.x + distance + radius, boundedCenter.y + offset));
+		handles.put(Handle.STRETCH_WEST, new Vec2i(activeScreenTopLeft.x - distance - radius, boundedCenter.y + offset));
 	}
 	
 	private void updateHandleCursor(Vec2i mousePos) {
 		Handle handle = isMouseInHandle(mousePos);
 		if(handle != null) {
 			ImagePanel.this.setCursor(handle.cursor);
+			this.mouseOverHandle = true;
+		}
+		else {
+			this.mouseOverHandle = false;
 		}
 	}
 	private Handle isMouseInHandle(Vec2i mousePos) {
@@ -888,7 +894,7 @@ public class ImagePanel extends JPanel implements LayersListener {
 		}
 		if(previousMousePosition != null && (brush.getMode() == BrushMode.BRUSH || brush.getMode() == BrushMode.FILL || brush.getMode() == BrushMode.ALL_MATCHING_COLOR || brush.getMode() == BrushMode.COLOR_PICKER || brush.getMode() == BrushMode.SELECT)) {
 			Vec2i pixelPosition = screenToPixel(previousMousePosition);
-			if(!movingCamera && !movingLayer && resizingLayer == null) {
+			if(!mouseOverHandle && !movingCamera && !movingLayer && resizingLayer == null) {
 				int minx = (int) ((pixelPosition.x - indicatorBrushSize/2) * zoom);
 				int miny = (int) ((pixelPosition.y - indicatorBrushSize/2) * zoom);
 				int maxx = (int) ((pixelPosition.x - indicatorBrushSize/2 + indicatorBrushSize) * zoom) - 1;
@@ -930,11 +936,12 @@ public class ImagePanel extends JPanel implements LayersListener {
 			
 			updateHandlePositions();
 			g.setColor(Color.white);
-			g2d.setStroke(new BasicStroke(1));
+			g2d.setRenderingHint(RenderingHints.KEY_STROKE_CONTROL, RenderingHints.VALUE_STROKE_PURE);
+			g2d.setStroke(KUI.dashed);
 			for(Entry<Handle, Vec2i> entry : handles.entrySet()) {
 				Vec2i pos = entry.getValue();
 				Handle handle = entry.getKey();
-//				g.drawOval(pos.x - radius, pos.y - radius, radius*2, radius*2);
+				g.drawOval(pos.x - radius, pos.y - radius, radius*2, radius*2);
 				g.drawImage(handle.image, pos.x - radius, pos.y - radius, radius*2, radius*2, null);
 			}
 //			Vec2i activeScreenTopLeft = pixelToScreen(new Vec2i(layers.active().x(), layers.active().y()));

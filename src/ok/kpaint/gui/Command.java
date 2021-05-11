@@ -7,7 +7,7 @@ public class Command {
 
 	public final Layer layer;
 	public final Handle handle;
-	public final Vec2i mouseStartPixel;
+	public Vec2i mouseStartPixel;
 	public Vec2i mouseEndPixel;
 	
 	public Command(Layer layer, Handle handle, Vec2i mouseStartPixel) {
