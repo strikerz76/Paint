@@ -11,12 +11,14 @@ import javax.swing.*;
 import ok.kpaint.Utils.*;
 import ok.kpaint.gui.*;
 import ok.kpaint.gui.layers.*;
-import ok.kui.*;
 
-public class ImagePanel extends JPanel implements LayersListener {
+public class ImagePanel extends JPanel implements LayersListener, ComponentListener {
 	
 	private static final Color TRANSLUCENT_BORDER = new Color(255, 255, 255, 100);
 	private static final Color SELECTED_BORDER = new Color(255, 255, 255, 150);
+	
+	private boolean DARK_MODE = false;
+	BufferedImage background = Utils.makeBackgroundImage(getWidth(), getHeight(), DARK_MODE);
 	
 	private LinkedList<String> infoStrings = new LinkedList<>();
 
@@ -107,7 +109,8 @@ public class ImagePanel extends JPanel implements LayersListener {
 				try {
 					int width = Integer.parseInt(widthField.getText());
 					int height = Integer.parseInt(heightField.getText());
-					resetImage(width, height);
+					BufferedImage newImage = new BufferedImage(width, height, BufferedImage.TYPE_4BYTE_ABGR);
+					layers.add(newImage);
 				}
 				catch(NumberFormatException e) {
 					JLabel l = new JLabel("Width and height must be integers.");
@@ -141,6 +144,18 @@ public class ImagePanel extends JPanel implements LayersListener {
 	public ImagePanel(Layers layers) {
 		this.layers = layers;
 		layers.addListener(this);
+		this.addComponentListener(this);
+		Thread repaintThread = new Thread(() -> {
+			try {
+				while(true) {
+					repaint();
+					Thread.sleep(100);
+				}
+			} catch (InterruptedException e1) {
+				e1.printStackTrace();
+			}
+		});
+		repaintThread.start();
 		this.addMouseWheelListener(new MouseWheelListener() {
 			@Override
 			public void mouseWheelMoved(MouseWheelEvent e) {
@@ -251,7 +266,6 @@ public class ImagePanel extends JPanel implements LayersListener {
 //				mousePosition = e.getPoint();
 				mouseButtonsPressed.remove(e.getButton());
 				if (e.getButton() == MouseEvent.BUTTON2 || e.getButton() == MouseEvent.BUTTON3) {
-					System.out.println("finishMovingCanvas");
 					finishMovingCanvas();
 				}
 				else {
@@ -319,6 +333,25 @@ public class ImagePanel extends JPanel implements LayersListener {
 				repaint();
 			}
 		});
+	}
+	
+	@Override
+	public void componentResized(ComponentEvent e) {
+		if(background.getWidth() != getWidth() || background.getHeight() != getHeight()) {
+			background = Utils.makeBackgroundImage(getWidth(), getHeight(), DARK_MODE);
+		}
+	}
+	@Override
+	public void componentMoved(ComponentEvent e) {
+		
+	}
+	@Override
+	public void componentShown(ComponentEvent e) {
+		
+	}
+	@Override
+	public void componentHidden(ComponentEvent e) {
+		
 	}
 
 	private static BufferedImage createFlipped(BufferedImage image, boolean northsouth) {
@@ -580,7 +613,7 @@ public class ImagePanel extends JPanel implements LayersListener {
 		
 		double xfit = 1.0*getWidth()/bounds.width;
 		double yfit = 1.0*getHeight()/bounds.height;
-		zoom = Math.min(xfit, yfit) * 0.95;
+		zoom = Math.min(xfit, yfit) * 0.9;
 		cameraOffset.x = (int) (getWidth()/2 - zoom * bounds.width/2 - zoom*bounds.x);
 		cameraOffset.y = (int) (getHeight()/2 - zoom * bounds.height/2 - zoom*bounds.y);
 		repaint();
@@ -599,16 +632,6 @@ public class ImagePanel extends JPanel implements LayersListener {
 		repaint();
 	}
 
-	public void resetImage(int w, int h) {
-		layers.deleteAll();
-		BufferedImage defaultImage = new BufferedImage(w, h, BufferedImage.TYPE_4BYTE_ABGR);
-		Graphics g = defaultImage.getGraphics();
-		g.setColor(altColor);
-		g.fillRect(0, 0, defaultImage.getWidth(), defaultImage.getHeight());
-		g.dispose();
-		addImageLayer(defaultImage);
-		resetView();
-	}
 	private void duplicateLayer() {
 		layers.add(Utils.copyImage(layers.active().image()));
 	}
@@ -762,7 +785,8 @@ public class ImagePanel extends JPanel implements LayersListener {
 	public void paintComponent(Graphics g) {
 		super.paintComponent(g);
 		g.setColor(Color.black);
-		g.fillRect(0, 0, getWidth(), getHeight());
+//		g.fillRect(0, 0, getWidth(), getHeight());
+		g.drawImage(background, 0, 0, getWidth(), getHeight(), null);
 		
 //		g.setColor(Color.white);
 //		g.drawLine(cameraOffset.x, 0, cameraOffset.x, getHeight()/16);

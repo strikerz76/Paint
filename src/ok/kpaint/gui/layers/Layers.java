@@ -7,14 +7,15 @@ import java.util.*;
 import ok.kpaint.*;
 
 public class Layers {
-	private static final Layer DUMMY = new Layer();
-
+	private static final Layer DUMMY = new Layer(new BufferedImage(1, 1, BufferedImage.TYPE_INT_ARGB)) {
+		public boolean shown() {return false;};
+	};
+	
 	private LinkedList<LayersListener> listeners = new LinkedList<>();
 	private ArrayList<Layer> layers = new ArrayList<>();
 	private Layer active = DUMMY;
 	
 	public Layers() {
-		
 	}
 	
 	public BufferedImage compose() {
@@ -121,17 +122,24 @@ public class Layers {
 			return;
 		}
 		layers.remove(layer);
-		if(layer == active && !layers.isEmpty()) {
-			if(index >= layers.size()) {
-				index--;
+		if(layer == active) {
+			if(!layers.isEmpty()) {
+				if(index >= layers.size()) {
+					index--;
+				}
+				active = layers.get(index);
 			}
-			active = layers.get(index);
+			else {
+				active = DUMMY;
+			}
 		}
 		notifyListeners();
 	}
 	
 	public void toggleShown(Layer layer) {
-		layer.toggleShown();
+		if(layer != DUMMY) {
+			layer.toggleShown();
+		}
 		notifyListeners();
 	}
 	

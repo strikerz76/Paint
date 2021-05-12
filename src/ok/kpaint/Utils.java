@@ -143,4 +143,26 @@ public class Utils {
 		g.dispose();
 		return rotated;
 	}
+	
+	public static final BufferedImage makeBackgroundImage(int w, int h, boolean dark) {
+		w = Math.max(w, 1);
+		h = Math.max(h, 1);
+		int cellSize = Math.max(w/10, h/10) + 1;
+		BufferedImage background = new BufferedImage(w, h, BufferedImage.TYPE_4BYTE_ABGR);
+		Graphics2D g = background.createGraphics();
+		g.setColor(dark ? Color.black : Color.white);
+		g.fillRect(0, 0, w, h);
+		Color one = new Color(50, 50, 50, 100);
+		Color two = new Color(100, 100, 100, 100);
+		for(int x = 0; x <= w/cellSize; x ++) {
+			g.setColor(x % 2 == 0 ? one : two);
+			g.fillRect(x*cellSize, 0, cellSize, h);
+		}
+		for(int y = 0; y <= h/cellSize; y++) {
+			g.setColor(y % 2 == 0 ? one : two);
+			g.fillRect(0, y*cellSize, w, cellSize);
+		}
+		g.dispose();
+		return background;
+	}
 }

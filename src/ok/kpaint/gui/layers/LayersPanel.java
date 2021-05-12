@@ -6,7 +6,16 @@ import java.util.*;
 
 import javax.swing.*;
 
+import ok.kpaint.*;
+
 public class LayersPanel implements LayersListener {
+	
+	private static final ImageIcon TRASH_ICON = Utils.resizeImageIcon(
+	               Utils.loadImageIconResource("/trash.png"), 16, 16);
+	private static final ImageIcon HIDDEN_ICON = Utils.resizeImageIcon(
+	               Utils.loadImageIconResource("/hidden.png"), 16, 16);
+	private static final ImageIcon SHOWN_ICON = Utils.resizeImageIcon(
+	               Utils.loadImageIconResource("/shown.png"), 16, 16);
 	
 	private HashMap<Integer, JPanel> layerPanels = new HashMap<>();
 	private Layers layers;
@@ -37,7 +46,7 @@ public class LayersPanel implements LayersListener {
 		addLayerButton = new JButton("new layer");
 		addLayerButton.setFocusable(false);
 		addLayerButton.addActionListener(e -> {
-			layers.add(0);
+			layers.add();
 		});
 		c.gridx = 0; c.gridy = row++; c.weightx = 1;;
 		panel.add(addLayerButton, c);
@@ -47,6 +56,7 @@ public class LayersPanel implements LayersListener {
 			Layer layer = layers.getLayers().get(i);
 			JPanel layerPanel = layerPanels.get(layer.id());
 			c.gridx = 0; c.gridy = row++; c.weightx = 1; c.gridwidth = 2;
+			c.fill = GridBagConstraints.HORIZONTAL;
 			panel.add(layerPanel, c);
 		}
 
@@ -74,11 +84,12 @@ public class LayersPanel implements LayersListener {
 			protected void paintComponent(Graphics g) {
 				super.paintComponent(g);
 				if(layers.active() == layer) {
-					g.setColor(Color.gray);
+					g.setColor(Color.LIGHT_GRAY);
 					g.fillRect(0, 0, getWidth(), getHeight());
 				}
 			}
 		};
+		layerPanel.setBorder(BorderFactory.createLineBorder(Color.black));
 		layerPanel.addMouseListener(new MouseListener() {
 			@Override
 			public void mouseClicked(MouseEvent e) {}
@@ -94,25 +105,30 @@ public class LayersPanel implements LayersListener {
 			public void mouseExited(MouseEvent e) {}
 		});
 		JLabel name = new JLabel("L" + layer.id());
-		JButton deleteButton = new JButton("d");
+		JButton deleteButton = new JButton(TRASH_ICON);
+		deleteButton.setMargin(new Insets(0, 0, 0, 0));
 		deleteButton.setFocusable(false);
 		deleteButton.addActionListener(e -> {
 			layers.delete(layer);
 		});
 		JButton moveUpButton = new JButton("^");
+		moveUpButton.setMargin(new Insets(0, 5, 0, 5));
 		moveUpButton.setFocusable(false);
 		moveUpButton.addActionListener(e -> {
 			layers.move(layer, 1);
 		});
 		JButton moveDownButton = new JButton("v");
+		moveDownButton.setMargin(new Insets(0, 5, 0, 5));
 		moveDownButton.setFocusable(false);
 		moveDownButton.addActionListener(e -> {
 			layers.move(layer, -1);
 		});
-		JToggleButton showhideButton = new JToggleButton("h");
+		JToggleButton showhideButton = new JToggleButton(SHOWN_ICON);
+		showhideButton.setMargin(new Insets(0, 0, 0, 0));
 		showhideButton.setFocusable(false);
 		showhideButton.addActionListener(e -> {
 			layers.toggleShown(layer);
+			showhideButton.setIcon(showhideButton.isSelected() ? HIDDEN_ICON : SHOWN_ICON);
 		});
 		
 		layerPanel.add(name);
