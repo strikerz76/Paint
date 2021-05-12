@@ -238,7 +238,7 @@ public class ImagePanel extends JPanel implements LayersListener, ComponentListe
 				Vec2i mousePos = new Vec2i(e.getPoint());
 				mouseButtonsPressed.add(e.getButton());
 				if(e.getButton() == MouseEvent.BUTTON2 || e.getButton() == MouseEvent.BUTTON3) {
-					startMovingCanvas(e.getPoint());
+					
 				}
 				else {
 					Handle handle = isMouseInHandle(mousePos);
@@ -266,7 +266,14 @@ public class ImagePanel extends JPanel implements LayersListener, ComponentListe
 //				mousePosition = e.getPoint();
 				mouseButtonsPressed.remove(e.getButton());
 				if (e.getButton() == MouseEvent.BUTTON2 || e.getButton() == MouseEvent.BUTTON3) {
-					finishMovingCanvas();
+					if(movingCamera) {
+						finishMovingCanvas();
+					}
+					else {
+						// TODO scan to see which layer was right clicked
+						LayerContextMenu contextMenu = new LayerContextMenu(layers, layers.active());
+						contextMenu.show(ImagePanel.this, e.getX(), e.getY());
+					}
 				}
 				else {
 					if(inprogressCommand != null) {
@@ -301,6 +308,10 @@ public class ImagePanel extends JPanel implements LayersListener, ComponentListe
 			@Override
 			public void mouseDragged(MouseEvent e) {
 				Vec2i mousePos = new Vec2i(e.getPoint());
+				if(mouseButtonsPressed.contains(MouseEvent.BUTTON2)
+						|| mouseButtonsPressed.contains(MouseEvent.BUTTON3)) {
+					startMovingCanvas(previousMousePosition);
+				}
 				if (movingCamera) {
 					updateCanvasMove(previousMousePosition, mousePos);
 				}
@@ -353,35 +364,8 @@ public class ImagePanel extends JPanel implements LayersListener, ComponentListe
 	public void componentHidden(ComponentEvent e) {
 		
 	}
-
-	private static BufferedImage createFlipped(BufferedImage image, boolean northsouth) {
-		AffineTransform at = new AffineTransform();
-		if(northsouth) {
-			at.concatenate(AffineTransform.getScaleInstance(1, -1));
-			at.concatenate(AffineTransform.getTranslateInstance(0, -image.getHeight()));
-		}
-		else {
-			at.concatenate(AffineTransform.getScaleInstance(-1, 1));
-			at.concatenate(AffineTransform.getTranslateInstance(-image.getWidth(), 0));
-		}
-		return createTransformed(image, at);
-	}
-
-	private static BufferedImage createRotated(BufferedImage image) {
-		AffineTransform at = AffineTransform.getRotateInstance(Math.PI, image.getWidth() / 2, image.getHeight() / 2.0);
-		return createTransformed(image, at);
-	}
-
-	private static BufferedImage createTransformed(BufferedImage image, AffineTransform at) {
-		BufferedImage newImage = new BufferedImage(image.getWidth(), image.getHeight(), BufferedImage.TYPE_INT_ARGB);
-		Graphics2D g = newImage.createGraphics();
-		g.transform(at);
-		g.drawImage(image, 0, 0, null);
-		g.dispose();
-		return newImage;
-	}
 	
-	private void startMovingCanvas(Point mousePosition) {
+	private void startMovingCanvas(Vec2i mousePosition) {
 		Rectangle canvas = getCanvasScreenRectangle();
 		Edge edge = Utils.isNearEdge(mousePosition, canvas);
 		if(edge == Edge.OUTSIDE || edge == Edge.INSIDE) {
@@ -502,13 +486,11 @@ public class ImagePanel extends JPanel implements LayersListener, ComponentListe
 //	}
 	
 	private void pasteFromClipboard() {
-//		Image image = Utils.getImageFromClipboard();
-//		if(image != null) {
-//			ipInterface.applySelection();
-//			selectedImage = Utils.toBufferedImage(image); 
-//			selectedRectangle = new Rectangle((int)((getWidth()/2-xOffset)/pixelSize - selectedImage.getWidth()/2), (int)((getHeight()/2-yOffset)/pixelSize - selectedImage.getHeight()/2), selectedImage.getWidth()-1, selectedImage.getHeight()-1);
-//			repaint();
-//		}
+		Image image = Utils.getImageFromClipboard();
+		if(image != null) {
+			layers.add(Utils.copyImage(Utils.toBufferedImage(image)));
+			repaint();
+		}
 	}
 	
 	private void clearSelection() {

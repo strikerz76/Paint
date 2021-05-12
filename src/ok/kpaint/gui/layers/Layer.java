@@ -56,6 +56,9 @@ public class Layer {
 		}
 	}
 	
+	public Rectangle bounds() {
+		return new Rectangle(position.x, position.y, image.getWidth(), image.getHeight());
+	}
 	public Rectangle getBoundsAfterCommand(Command command) {
 		Vec2i delta = command.mouseEndPixel.subtract(command.mouseStartPixel);
 		Rectangle newSize = new Rectangle(position.x, position.y, image.getWidth(), image.getHeight());
@@ -143,6 +146,10 @@ public class Layer {
 //		}
 	}
 	
+	public void reflectImage(boolean horizontal) {
+		image = Utils.createFlipped(image, !horizontal);
+	}
+	
 	private void brush(Vec2i center, Brush brush) {
 		Point lowerBound = new Point(center.x - brush.getSize()/2, center.y - brush.getSize()/2);
 		Point upperBound = new Point(lowerBound.x + brush.getSize() - 1, lowerBound.y + brush.getSize() - 1);
@@ -171,6 +178,9 @@ public class Layer {
 	
 	public void toggleShown() {
 		shown = !shown;
+	}
+	public void setShown(boolean shown) {
+		this.shown = shown;
 	}
 	
 	public boolean shown() {

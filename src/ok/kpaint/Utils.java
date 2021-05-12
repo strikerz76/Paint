@@ -2,6 +2,7 @@ package ok.kpaint;
 
 import java.awt.*;
 import java.awt.datatransfer.*;
+import java.awt.geom.*;
 import java.awt.image.*;
 import java.io.*;
 import java.net.*;
@@ -32,8 +33,8 @@ public class Utils {
 		}
 	}
 	
-	public static final Edge isNearEdge(Point point, Rectangle rectangle) {
-		if(rectangle.contains(point)) {
+	public static final Edge isNearEdge(Vec2i point, Rectangle rectangle) {
+		if(rectangle.contains(new Point(point.x, point.y))) {
 			return Edge.INSIDE;
 		}
 		int buffer = 10;
@@ -142,6 +143,31 @@ public class Utils {
 		g.drawImage(image, 0, 0, null);
 		g.dispose();
 		return rotated;
+	}
+	
+	public static final BufferedImage createFlipped(BufferedImage image, boolean northsouth) {
+		AffineTransform at = new AffineTransform();
+		if(northsouth) {
+			at.concatenate(AffineTransform.getScaleInstance(1, -1));
+			at.concatenate(AffineTransform.getTranslateInstance(0, -image.getHeight()));
+		}
+		else {
+			at.concatenate(AffineTransform.getScaleInstance(-1, 1));
+			at.concatenate(AffineTransform.getTranslateInstance(-image.getWidth(), 0));
+		}
+		return createTransformed(image, at);
+	}
+	private static BufferedImage createTransformed(BufferedImage image, AffineTransform at) {
+		BufferedImage newImage = new BufferedImage(image.getWidth(), image.getHeight(), BufferedImage.TYPE_INT_ARGB);
+		Graphics2D g = newImage.createGraphics();
+		g.transform(at);
+		g.drawImage(image, 0, 0, null);
+		g.dispose();
+		return newImage;
+	}
+	private static BufferedImage createRotated(BufferedImage image) {
+		AffineTransform at = AffineTransform.getRotateInstance(Math.PI, image.getWidth() / 2, image.getHeight() / 2.0);
+		return createTransformed(image, at);
 	}
 	
 	public static final BufferedImage makeBackgroundImage(int w, int h, boolean dark) {

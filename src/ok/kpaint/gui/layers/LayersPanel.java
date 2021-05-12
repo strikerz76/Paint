@@ -60,7 +60,6 @@ public class LayersPanel implements LayersListener {
 			panel.add(layerPanel, c);
 		}
 
-		
 		panel.revalidate();
 		panel.repaint();
 	}
@@ -136,6 +135,24 @@ public class LayersPanel implements LayersListener {
 		layerPanel.add(moveUpButton);
 		layerPanel.add(moveDownButton);
 		layerPanel.add(showhideButton);
+		
+		LayerContextMenu contextMenu = new LayerContextMenu(layers, layer);
+		layerPanel.addMouseListener(new MouseListener() {
+			@Override
+			public void mouseReleased(MouseEvent e) {
+				if(e.getButton() == MouseEvent.BUTTON3) {
+					contextMenu.show(layerPanel, e.getX(), e.getY());
+				}
+			}
+			@Override
+			public void mousePressed(MouseEvent e) { }
+			@Override
+			public void mouseExited(MouseEvent e) { }
+			@Override
+			public void mouseEntered(MouseEvent e) { }
+			@Override
+			public void mouseClicked(MouseEvent e) { }
+		});
 		return layerPanel;
 	}
 

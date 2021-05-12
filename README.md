@@ -7,13 +7,8 @@ TODO:
 	- ability to choose background
 	- add rotation handle
 	- hold ctrl to force axis-aligned move or to maintain aspect ratio
-	- right click menu (either directly on a LayerPanel or on the canvas and pick the first layer it overlaps)
-		- select layer
+	- right click menu (on the canvas and pick the first layer it overlaps)
 		- hide other layers
-		- copy just this layer to clipboard
-		- ability to merge layers together
-		- ability to duplicate layer
-		- flip horizontal/vertical
 		- stretch layer to size
 	- LayersPanel
 		- hide/show all

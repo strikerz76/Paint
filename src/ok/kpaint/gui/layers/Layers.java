@@ -20,7 +20,7 @@ public class Layers {
 	
 	public BufferedImage compose() {
 		Rectangle bounds = getBoundingRect();
-		BufferedImage composed = new BufferedImage(bounds.width, bounds.height, BufferedImage.TYPE_4BYTE_ABGR);
+		BufferedImage composed = new BufferedImage(bounds.width, bounds.height, BufferedImage.TYPE_INT_ARGB);
 		Graphics2D g = composed.createGraphics();
 		for(Layer layer : layers) {
 			if(layer.shown()) {
@@ -134,6 +134,23 @@ public class Layers {
 			}
 		}
 		notifyListeners();
+	}
+	public void applyLayer(Layer layer) {
+		int index = layers.indexOf(layer);
+		if(index > 0) {
+			Layer applyon = layers.get(index - 1);
+			Rectangle before = applyon.bounds();
+			Rectangle extra = layer.bounds();
+			Rectangle newbounds = before.union(extra);
+			// TODO figure out how to use correct altColor for this
+			applyon.resize(newbounds, new Color(0, 0, 0, 0));
+			Graphics2D g = applyon.image().createGraphics();
+			g.translate(layer.x() - applyon.x(), layer.y() - applyon.y());
+			g.drawImage(layer.image(), 0, 0, null);
+			g.dispose();
+			
+			delete(layer);
+		}
 	}
 	
 	public void toggleShown(Layer layer) {
