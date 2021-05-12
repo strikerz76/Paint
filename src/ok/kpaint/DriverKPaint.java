@@ -17,7 +17,7 @@ public class DriverKPaint {
 	public static final Font MAIN_FONT_BIG = new Font("Cooper Black", Font.PLAIN, 16);
 	public static final boolean DEBUG = false;
 	
-	public static final String TITLE = "KPaint 1.1";
+	public static final String TITLE = "KPaint 1.2 alpha";
 	
 	private JFrame frame;
 	private ImagePanel imagePanel;

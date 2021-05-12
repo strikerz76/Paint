@@ -146,12 +146,12 @@ public class ImagePanel extends JPanel implements LayersListener, ComponentListe
 			@Override
 			public void keyReleased(KeyEvent e) {
 				if(e.isControlDown()) {
-					if(e.getKeyCode() == KeyEvent.VK_1) {
-						guiInterface.switchLayout(true);
-					}
-					if(e.getKeyCode() == KeyEvent.VK_2) {
-						guiInterface.switchLayout(false);
-					}
+//					if(e.getKeyCode() == KeyEvent.VK_1) {
+//						guiInterface.switchLayout(true);
+//					}
+//					if(e.getKeyCode() == KeyEvent.VK_2) {
+//						guiInterface.switchLayout(false);
+//					}
 					if(e.getKeyCode() == KeyEvent.VK_N) {
 						ipInterface.newLayer();
 					}
@@ -186,7 +186,7 @@ public class ImagePanel extends JPanel implements LayersListener, ComponentListe
 					else if(e.getKeyCode() == KeyEvent.VK_P) {
 						guiInterface.changeModeHotkey(BrushMode.COLOR_PICKER);
 					}
-					else if(e.getKeyCode() == KeyEvent.VK_S) {
+					else if(e.getKeyCode() == KeyEvent.VK_E) {
 						guiInterface.changeModeHotkey(BrushMode.EXTRACT);
 					}
 					else if(e.getKeyCode() == KeyEvent.VK_B) {
