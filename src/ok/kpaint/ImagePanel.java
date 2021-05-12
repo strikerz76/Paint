@@ -233,7 +233,7 @@ public class ImagePanel extends JPanel implements LayersListener, ComponentListe
 						updateSelectionRectangle(e.getPoint());
 					}
 					else if(brush.getMode() == BrushMode.COLOR_PICKER) {
-						colorPicker(screenToPixel(e.getPoint()), e.isShiftDown());
+						colorPicker(screenToPixel(mousePos), e.isShiftDown());
 					}
 					else {
 						draw(screenToPixel(e.getPoint()), e.isShiftDown());
@@ -378,7 +378,8 @@ public class ImagePanel extends JPanel implements LayersListener, ComponentListe
 	}
 	
 	public void colorPicker(Vec2i pixel, boolean shiftDown) {
-		Color selected = new Color(getCurrentImage().getRGB(pixel.x, pixel.y), true);
+		Rectangle bounds = layers.getBoundingRect();
+		Color selected = new Color(getCurrentImage().getRGB(pixel.x - bounds.x, pixel.y - bounds.y), true);
 		if(shiftDown) {
 			ipInterface.setAltColor(selected);
 		}
