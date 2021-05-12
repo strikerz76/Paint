@@ -627,50 +627,6 @@ public class ImagePanel extends JPanel implements LayersListener, ComponentListe
 		return neighbors;
 	}
 	
-	private void brush(Point lowerBound, Point upperBound, BrushShape shape, Color setTo) {
-//		int centerx = (upperBound.x + lowerBound.x)/2;
-//		int centery = (upperBound.y + lowerBound.y)/2;
-//		int radius = (upperBound.x - lowerBound.x)/2;
-//		int maxdistance = radius*radius;
-//		for(int i = lowerBound.x; i <= upperBound.x; i++) {
-//			for(int j = lowerBound.y; j <= upperBound.y; j++) {
-//				if(shape == BrushShape.CIRCLE) {
-//					double distance = (i - centerx)*(i - centerx) 
-//							+ (j - centery)*(j - centery);
-//					if(distance > maxdistance) {
-//						continue;
-//					}
-//				}
-//				history.getCurrent().setRGB(i, j, setTo.getRGB());
-//			}
-//		}
-	}
-	private void fill(Point lowerBound, Point upperBound, Color setTo) {
-//		HashSet<Integer> colors = new HashSet<>();
-//		HashSet<Pixel> visited = new HashSet<>();
-//		LinkedList<Pixel> search = new LinkedList<Pixel>();
-//		for(int i = lowerBound.x; i <= upperBound.x; i++) {
-//			for(int j = lowerBound.y; j <= upperBound.y; j++) {
-//				Pixel start = new Pixel(i, j);
-//				search.add(start);
-//				colors.add(history.getCurrent().getRGB(i, j));
-//				visited.add(start);
-//			}
-//		}
-//		while (!search.isEmpty()) {
-//			Pixel pixel = search.removeFirst();
-//			history.getCurrent().setRGB(pixel.x, pixel.y, setTo.getRGB());
-////			setSelected(pixel.x, pixel.y, setTo);
-//			for(Pixel neighbor : getNeighbors(pixel)) {
-//				if(!visited.contains(neighbor) && neighbor.x >= 0 && neighbor.y >= 0 && neighbor.x < history.getCurrent().getWidth() && neighbor.y < history.getCurrent().getHeight()) {
-//					visited.add(neighbor);
-//					if (colors.contains(history.getCurrent().getRGB(neighbor.x, neighbor.y))) {
-//						search.add(neighbor);
-//					}
-//				}
-//			}
-//		}
-	}
 
 	private void matchColorDraw(Point lowerBound, Point upperBound, Color setTo) {
 //		HashSet<Integer> colors = new HashSet<>();
@@ -797,6 +753,14 @@ public class ImagePanel extends JPanel implements LayersListener, ComponentListe
 				int w = (int) (zoom*layer.w());
 				int h = (int) (zoom*layer.h());
 				g.drawImage(layer.image(), x, y, w, h, null);
+				if(showTiling && layer == layers.active()) {
+					g.drawImage(layer.image(), x, y - h, w, h, null);
+					g.drawImage(layer.image(), x, y + h, w, h, null);
+					g.drawImage(layer.image(), x + w, y - h/2, w, h, null);
+					g.drawImage(layer.image(), x - w, y - h/2, w, h, null);
+					g.drawImage(layer.image(), x + w, y + h/2, w, h, null);
+					g.drawImage(layer.image(), x - w, y + h/2, w, h, null);
+				}
 			}
 		}
 		for(Layer layer : layers.getLayers()) {

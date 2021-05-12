@@ -2,6 +2,7 @@ package ok.kpaint.gui.layers;
 
 import java.awt.*;
 import java.awt.image.*;
+import java.util.*;
 
 import ok.kpaint.*;
 import ok.kpaint.gui.*;
@@ -131,32 +132,30 @@ public class Layer {
 		position.y = newSize.y;
 	}
 	
+	public void reflectImage(boolean horizontal) {
+		image = Utils.createFlipped(image, !horizontal);
+	}
+	
 	public void draw(Vec2i pixel, Brush brush) {
 		
 		Vec2i drawAt = pixel.subtract(position);//new Vec2i(pixel.x - position.x, pixel.y - position.y);
 		
-//		if (brush.getMode() == BrushMode.ALL_MATCHING_COLOR) {
-//			matchColorDraw(lowerBound, upperBound, color);
-//		} 
-//		else if (brush.getMode() == BrushMode.FILL) {
-//			fill(lowerBound, upperBound, color);
-//		}
-//		else if (brush.getMode() == BrushMode.BRUSH) {
+		if (brush.getMode() == BrushMode.ALL_MATCHING_COLOR) {
+			matchColorDraw(drawAt, brush);
+		} 
+		else if (brush.getMode() == BrushMode.FILL) {
+			fill(drawAt, brush);
+		}
+		else if (brush.getMode() == BrushMode.BRUSH) {
 			brush(drawAt, brush);
-//		}
-	}
-	
-	public void reflectImage(boolean horizontal) {
-		image = Utils.createFlipped(image, !horizontal);
+		}
 	}
 	
 	private void brush(Vec2i center, Brush brush) {
 		Point lowerBound = new Point(center.x - brush.getSize()/2, center.y - brush.getSize()/2);
 		Point upperBound = new Point(lowerBound.x + brush.getSize() - 1, lowerBound.y + brush.getSize() - 1);
-
 		lowerBound.x = Math.max(lowerBound.x, 0);
 		lowerBound.y = Math.max(lowerBound.y, 0);
-		
 		upperBound.x = Math.min(upperBound.x, image.getWidth()-1);
 		upperBound.y = Math.min(upperBound.y, image.getHeight()-1);
 		
@@ -172,6 +171,83 @@ public class Layer {
 					}
 				}
 				image.setRGB(i, j, brush.getColor().getRGB());
+			}
+		}
+	}
+	private void fill(Vec2i center, Brush brush) {
+		Point lowerBound = new Point(center.x - brush.getSize()/2, center.y - brush.getSize()/2);
+		Point upperBound = new Point(lowerBound.x + brush.getSize() - 1, lowerBound.y + brush.getSize() - 1);
+		lowerBound.x = Math.max(lowerBound.x, 0);
+		lowerBound.y = Math.max(lowerBound.y, 0);
+		upperBound.x = Math.min(upperBound.x, image.getWidth()-1);
+		upperBound.y = Math.min(upperBound.y, image.getHeight()-1);
+		
+		HashSet<Integer> colors = new HashSet<>();
+		HashSet<Vec2i> visited = new HashSet<>();
+		LinkedList<Vec2i> search = new LinkedList<>();
+
+		int radius = brush.getSize()/2;
+		int maxdistance = radius*radius;
+		for(int i = lowerBound.x; i <= upperBound.x; i++) {
+			for(int j = lowerBound.y; j <= upperBound.y; j++) {
+				if(brush.getShape() == BrushShape.CIRCLE) {
+					double distance = (i - center.x)*(i - center.x) 
+							+ (j - center.y)*(j - center.y);
+					if(distance > maxdistance) {
+						continue;
+					}
+				}
+				
+				Vec2i start = new Vec2i(i, j);
+				search.add(start);
+				colors.add(image.getRGB(i, j));
+				visited.add(start);
+			}
+		}
+		
+		while (!search.isEmpty()) {
+			Vec2i pixel = search.removeFirst();
+			image.setRGB(pixel.x, pixel.y, brush.getColor().getRGB());
+			
+			Vec2i[] neighbors = new Vec2i[] {
+					new Vec2i(pixel.x, pixel.y - 1),
+					new Vec2i(pixel.x, pixel.y + 1),
+					new Vec2i(pixel.x - 1, pixel.y),
+					new Vec2i(pixel.x + 1, pixel.y)
+			};
+			for(Vec2i neighbor : neighbors) {
+				if(!visited.contains(neighbor) && neighbor.x >= 0 && neighbor.y >= 0 && neighbor.x < image.getWidth() && neighbor.y < image.getHeight()) {
+					visited.add(neighbor);
+					if (colors.contains(image.getRGB(neighbor.x, neighbor.y))) {
+						search.add(neighbor);
+					}
+				}
+			}
+		}
+	}
+
+	private void matchColorDraw(Vec2i center, Brush brush) {
+		Point lowerBound = new Point(center.x - brush.getSize()/2, center.y - brush.getSize()/2);
+		Point upperBound = new Point(lowerBound.x + brush.getSize() - 1, lowerBound.y + brush.getSize() - 1);
+		lowerBound.x = Math.max(lowerBound.x, 0);
+		lowerBound.y = Math.max(lowerBound.y, 0);
+		upperBound.x = Math.min(upperBound.x, image.getWidth()-1);
+		upperBound.y = Math.min(upperBound.y, image.getHeight()-1);
+		
+		HashSet<Integer> colors = new HashSet<>();
+		for(int i = lowerBound.x; i <= upperBound.x; i++) {
+			for(int j = lowerBound.y; j <= upperBound.y; j++) {
+				colors.add(image.getRGB(i, j));
+			}
+		}
+		if(colors.isEmpty()) {
+			return;
+		}
+		for (int i = 0; i < image.getWidth(); i++) {
+			for (int j = 0; j < image.getHeight(); j++) {
+				if(colors.contains(image.getRGB(i, j))) {
+					image.setRGB(i, j, brush.getColor().getRGB());
+				}
 			}
 		}
 	}
