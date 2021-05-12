@@ -209,8 +209,6 @@ public class Utils {
 				int width = Integer.parseInt(widthField.getText());
 				int height = Integer.parseInt(heightField.getText());
 				return new Vec2i(width, height);
-//				BufferedImage newImage = new BufferedImage(width, height, BufferedImage.TYPE_4BYTE_ABGR);
-//				layers.add(newImage);
 			}
 			catch(NumberFormatException e) {
 				JLabel l = new JLabel("Width and height must be integers.");
@@ -219,5 +217,11 @@ public class Utils {
 			}
 		}
 		return null;
+	}
+	
+	public static final Rectangle makeRectangle(Vec2i one, Vec2i two) {
+		Vec2i min = new Vec2i(Math.min(one.x, two.x), Math.min(one.y, two.y));
+		Vec2i max = new Vec2i(Math.max(one.x, two.x), Math.max(one.y, two.y));
+		return new Rectangle(min.x, min.y, max.x - min.x, max.y - min.y);
 	}
 }

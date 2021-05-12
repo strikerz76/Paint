@@ -46,6 +46,10 @@ public class Layer {
 		position.y = center.y - h()/2;
 	}
 	
+	public void setPosition(Vec2i position) {
+		this.position = position;
+	}
+	
 	/**
 	 * 	this is called when state changes on a command
 	 */
@@ -248,6 +252,20 @@ public class Layer {
 				if(colors.contains(image.getRGB(i, j))) {
 					image.setRGB(i, j, brush.getColor().getRGB());
 				}
+			}
+		}
+	}
+	
+	public void erase(Rectangle rect, Color color) {
+		Vec2i lowerBound = new Vec2i(rect.x, rect.y).subtract(position);
+		Vec2i upperBound = new Vec2i(lowerBound.x + rect.width, lowerBound.y + rect.height);
+		lowerBound.x = Math.max(lowerBound.x, 0);
+		lowerBound.y = Math.max(lowerBound.y, 0);
+		upperBound.x = Math.min(upperBound.x, image.getWidth());
+		upperBound.y = Math.min(upperBound.y, image.getHeight());
+		for (int i = lowerBound.x; i < upperBound.x; i++) {
+			for (int j = lowerBound.y; j < upperBound.y; j++) {
+				image.setRGB(i, j, color.getRGB());
 			}
 		}
 	}

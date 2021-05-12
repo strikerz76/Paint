@@ -103,12 +103,24 @@ public class Layers {
 	private void add(Layer layer, int index) {
 		if(index <= layers.size()) {
 			layers.add(index, layer);
-			if(active == DUMMY) {
-				active = layers.get(0);
-			}
 			setActive(layer);
 			notifyListeners();
 		}
+	}
+	
+	public void extract(Rectangle extraction, Color altColor) {
+		Rectangle bounds = getBoundingRect();
+		BufferedImage image = compose();
+		BufferedImage extracted = image.getSubimage(extraction.x - bounds.x, extraction.y - bounds.y, extraction.width, extraction.height);
+		
+		for(Layer layer : layers) {
+			if(layer.shown()) {
+				layer.erase(extraction, altColor);
+			}
+		}
+		
+		add(extracted);
+		active().setPosition(new Vec2i(extraction.x, extraction.y));
 	}
 	
 	public void deleteAll() {

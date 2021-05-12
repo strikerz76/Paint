@@ -10,8 +10,6 @@ public interface ImagePanelInterface {
 	public void undo();
 	public void redo();
 	public void resetView();
-	public void applySelection();
-	public void clearSelection();
 	public void pasteFromClipboard();
 
 	public void showTiling(boolean enabled);
@@ -23,7 +21,7 @@ public interface ImagePanelInterface {
 	public void setAltColor(Color color2);
 	public void swapColors();
 
-	public void newCanvas();
+	public void newLayer();
 	
 	public void setBrushSize(int size);
 	public void setBrushShape(BrushShape shape);

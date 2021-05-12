@@ -56,14 +56,6 @@ public class ImagePanel extends JPanel implements LayersListener, ComponentListe
 			ImagePanel.this.resetView();
 		}
 		@Override
-		public void applySelection() {
-			ImagePanel.this.applySelection();
-		}
-		@Override
-		public void clearSelection() {
-			ImagePanel.this.clearSelection();
-		}
-		@Override
 		public void pasteFromClipboard() {
 			ImagePanel.this.pasteFromClipboard();
 		}
@@ -93,7 +85,7 @@ public class ImagePanel extends JPanel implements LayersListener, ComponentListe
 			guiInterface.changedColor(altColor);
 		}
 		@Override
-		public void newCanvas() {
+		public void newLayer() {
 			Vec2i newLayerSize = Utils.queryNewLayerSize(ImagePanel.this,
 			                                             new Vec2i(layers.active().w(), layers.active().h()));
 			if(newLayerSize != null) {
@@ -161,7 +153,7 @@ public class ImagePanel extends JPanel implements LayersListener, ComponentListe
 						guiInterface.switchLayout(false);
 					}
 					if(e.getKeyCode() == KeyEvent.VK_N) {
-						ipInterface.newCanvas();
+						ipInterface.newLayer();
 					}
 					if(e.getKeyCode() == KeyEvent.VK_S) {
 						controllerInterface.save();
@@ -183,20 +175,9 @@ public class ImagePanel extends JPanel implements LayersListener, ComponentListe
 							ipInterface.undo();
 						}
 					}
-					if(e.getKeyCode() == KeyEvent.VK_A) {
-						selectAll();
-						updateSelection();
-						guiInterface.finishedSelection();
-					}
 				}
 				else {
-					if(e.getKeyCode() == KeyEvent.VK_ESCAPE) {
-						ipInterface.applySelection();
-					}
-					else if(e.getKeyCode() == KeyEvent.VK_DELETE) {
-						ipInterface.clearSelection();
-					}
-					else if(e.getKeyCode() == KeyEvent.VK_SPACE) {
+					if(e.getKeyCode() == KeyEvent.VK_SPACE) {
 						ipInterface.resetView();
 					}
 					else if(e.getKeyCode() == KeyEvent.VK_SHIFT) {
@@ -206,7 +187,7 @@ public class ImagePanel extends JPanel implements LayersListener, ComponentListe
 						guiInterface.changeModeHotkey(BrushMode.COLOR_PICKER);
 					}
 					else if(e.getKeyCode() == KeyEvent.VK_S) {
-						guiInterface.changeModeHotkey(BrushMode.SELECT);
+						guiInterface.changeModeHotkey(BrushMode.EXTRACT);
 					}
 					else if(e.getKeyCode() == KeyEvent.VK_B) {
 						guiInterface.changeModeHotkey(BrushMode.BRUSH);
@@ -230,16 +211,14 @@ public class ImagePanel extends JPanel implements LayersListener, ComponentListe
 				}
 				else {
 					Handle handle = isMouseInHandle(mousePos);
-					if(handle != null) {
-						inprogressCommand = new Command(layers.active(), handle, screenToPixel(mousePos));
-					}
-					else if(brush.getMode() == BrushMode.SELECT) {
-						resetSelection();
-	//					startedSelection = e.getPoint();
-						updateSelectionRectangle(e.getPoint());
+					if(brush.getMode() == BrushMode.EXTRACT) {
+						startExtraction(mousePos);
 					}
 					else if(brush.getMode() == BrushMode.COLOR_PICKER) {
 						colorPicker(screenToPixel(mousePos), e.isShiftDown());
+					}
+					else if(handle != null) {
+						inprogressCommand = new Command(layers.active(), handle, screenToPixel(mousePos));
 					}
 					else {
 						draw(screenToPixel(e.getPoint()), e.isShiftDown());
@@ -251,7 +230,7 @@ public class ImagePanel extends JPanel implements LayersListener, ComponentListe
 
 			@Override
 			public void mouseReleased(MouseEvent e) {
-//				mousePosition = e.getPoint();
+				Vec2i mousePos = new Vec2i(e.getPoint());
 				mouseButtonsPressed.remove(e.getButton());
 				if (e.getButton() == MouseEvent.BUTTON2 || e.getButton() == MouseEvent.BUTTON3) {
 					if(movingCamera) {
@@ -269,16 +248,14 @@ public class ImagePanel extends JPanel implements LayersListener, ComponentListe
 						// TODO add to history here
 						inprogressCommand = null;
 					}
-					else if(brush.getMode() == BrushMode.SELECT) {
-						System.out.println("finish selection");
-						updateSelectionRectangle(e.getPoint());
-						updateSelection();
+					else if(brush.getMode() == BrushMode.EXTRACT) {
+						finishExtraction();
 						guiInterface.finishedSelection();
 					}
 					else {
 					}
 				}
-				previousMousePosition = new Vec2i(e.getPoint());
+				previousMousePosition = mousePos;
 				repaint();
 			}
 			@Override
@@ -308,14 +285,14 @@ public class ImagePanel extends JPanel implements LayersListener, ComponentListe
 						inprogressCommand.mouseEndPixel = screenToPixel(mousePos);
 						inprogressCommand.layer.updateCommand(inprogressCommand);
 					}
-					else if(brush.getMode() == BrushMode.SELECT) {
-						updateSelectionRectangle(e.getPoint());
+					else if(brush.getMode() == BrushMode.EXTRACT) {
+						updateExtraction(mousePos);
 					}
 					else {
-						draw(screenToPixel(e.getPoint()), e.isShiftDown());
+						draw(screenToPixel(mousePos), e.isShiftDown());
 					}
 				}
-				previousMousePosition = new Vec2i(e.getPoint());
+				previousMousePosition = mousePos;
 				repaint();
 			}
 
@@ -380,6 +357,23 @@ public class ImagePanel extends JPanel implements LayersListener, ComponentListe
 		movingCamera = false;
 	}
 	
+	private Vec2i extractionStart;
+	private Vec2i extractionCurrent;
+	private void startExtraction(Vec2i screen) {
+		extractionStart = screenToPixel(screen);
+		extractionCurrent = extractionStart.add(1, 1);
+	}
+	private void updateExtraction(Vec2i screen) {
+		extractionCurrent = screenToPixel(screen).add(1, 1);
+	}
+	private void finishExtraction() {
+		Rectangle extraction = Utils.makeRectangle(extractionStart, extractionCurrent);
+		layers.extract(extraction, altColor);
+		guiInterface.changeModeHotkey(BrushMode.BRUSH);
+		extractionStart = null;
+		extractionCurrent = null;
+	}
+	
 	public void setGUIInterface(GUIInterface guiInterface) {
 		this.guiInterface = guiInterface;
 	}
@@ -436,47 +430,6 @@ public class ImagePanel extends JPanel implements LayersListener, ComponentListe
 		repaint();
 	}
 	
-	public void updateSelectionRectangle(Point mousePosition) {
-//		Point one = getPixelPosition(mousePosition);
-//		Point two = getPixelPosition(startedSelection);
-//		int minx = Math.max(Math.min(one.x, two.x), 0);
-//		int miny = Math.max(Math.min(one.y, two.y), 0);
-//		int maxx = Math.min(Math.max(one.x, two.x), layers.active().w()-1);
-//		int maxy = Math.min(Math.max(one.y, two.y), layers.active().h()-1);
-//		selectedRectangle = new Rectangle(minx, miny, maxx-minx, maxy-miny);
-	}
-	public void selectAll() {
-//		selectedRectangle = new Rectangle(0, 0, getCurrentImage().getWidth()-1, getCurrentImage().getHeight()-1);
-	}
-	
-	public void updateSelection() {
-//		history.modified();
-//		BufferedImage subimage = history.getCurrent().getSubimage(selectedRectangle.x, selectedRectangle.y, selectedRectangle.width + 1, selectedRectangle.height + 1);
-//		selectedImage = Utils.copyImage(subimage);
-//		brush(new Point(selectedRectangle.x, selectedRectangle.y), new Point(selectedRectangle.x+selectedRectangle.width, selectedRectangle.y + selectedRectangle.height), BrushShape.SQUARE, color2);
-//		history.pushVersion();
-//		repaint();
-	}
-
-//	public void resizeCanvas(Rectangle newSize) {
-////		BufferedImage newImage = new BufferedImage(newSize.width, newSize.height, BufferedImage.TYPE_4BYTE_ABGR);
-////		Graphics g = newImage.getGraphics();
-////		g.setColor(color2);
-////		g.fillRect(0, 0, -newSize.x, newImage.getHeight());
-////		g.fillRect(0, 0, newImage.getWidth(), -newSize.y);
-////		BufferedImage currentImage = history.getCurrent();
-////		g.fillRect(-newSize.x + currentImage.getWidth(), 0, newImage.getWidth(), newImage.getHeight());
-////		g.fillRect(0, -newSize.y + currentImage.getHeight(), newImage.getWidth(), newImage.getHeight());
-////		g.drawImage(currentImage, -newSize.x, -newSize.y, null);
-////		g.dispose();
-////		history.setCurrentImage(newImage);
-////		if(selectedRectangle != null) {
-////			selectedRectangle.x -= newSize.x;
-////			selectedRectangle.y -= newSize.y;
-////		}
-////		xOffset += newSize.x*pixelSize;
-////		yOffset += newSize.y*pixelSize;
-//	}
 	
 	private void pasteFromClipboard() {
 		Image image = Utils.getImageFromClipboard();
@@ -486,72 +439,12 @@ public class ImagePanel extends JPanel implements LayersListener, ComponentListe
 		}
 	}
 	
-	private void clearSelection() {
-//		selectedImage = null;
-//		selectedRectangle = null;
-//		repaint();
-	}
-	
-	private Rectangle getSelectionScreenRectangle() {
-//		if(selectedRectangle != null) {
-//			return new Rectangle((int) (selectedRectangle.x*pixelSize+xOffset), (int) (selectedRectangle.y*pixelSize+yOffset), (int) ((selectedRectangle.width+1)*pixelSize)-1, (int) ((selectedRectangle.height+1)*pixelSize)-1);
-//		}
-		return null;
-	}
-	
 	private Rectangle getCanvasScreenRectangle() {
 		return new Rectangle(
 				(int)(cameraOffset.x + layers.active().x()*zoom), 
 				(int)(cameraOffset.y + layers.active().y() * zoom), 
 				(int)(layers.active().w()*zoom), 
 				(int)(layers.active().h()*zoom));
-		
-//		return new Rectangle(xOffset, yOffset, (int) (getCurrentImage().getWidth()*pixelSize), (int) (getCurrentImage().getHeight()*pixelSize));
-	}
-	
-	private Rectangle getCanvasSizeWithSelection() {
-//		if(selectedRectangle == null || selectedImage == null) {
-//			return new Rectangle(0, 0, getCurrentImage().getWidth(), getCurrentImage().getHeight());
-//		}
-//		int minx = Math.min(selectedRectangle.x, 0);
-//		int miny = Math.min(selectedRectangle.y, 0);
-//		int maxx = Math.max(selectedRectangle.x + selectedImage.getWidth(), getCurrentImage().getWidth());
-//		int maxy = Math.max(selectedRectangle.y + selectedImage.getHeight(), getCurrentImage().getHeight());
-//		int x = 0;
-//		int y = 0;
-//		if(selectedRectangle.x < 0) {
-//			x = selectedRectangle.x;
-//		}
-//		if(selectedRectangle.y < 0) {
-//			y = selectedRectangle.y;
-//		}
-//		return new Rectangle(x, y, maxx - minx, maxy - miny);
-		return getCanvasScreenRectangle();
-	}
-	
-	private void applySelection() {
-//		if(selectedRectangle == null || selectedImage == null) {
-//			return;
-//		}
-////		history.modified();
-//		Rectangle newCanvasSize = getCanvasSizeWithSelection();
-//		
-//		if(newCanvasSize.width != getCurrentImage().getWidth() || newCanvasSize.height != getCurrentImage().getHeight()) {
-//			System.out.println("resizing");
-////			resizeCanvas(newCanvasSize);
-//		}
-//		Graphics g = getCurrentImage().getGraphics();
-//		g.drawImage(selectedImage, selectedRectangle.x, selectedRectangle.y, selectedRectangle.width+1, selectedRectangle.height+1, null);
-//		g.dispose();
-//		resetSelection();
-////		history.pushVersion();
-//		repaint();
-	}
-	
-	public void resetSelection() {
-//		startedSelection = null;
-//		selectedImage = null;
-//		selectedRectangle = null;
 	}
 	
 	public Vec2i screenToPixel(Point screenPos) {
@@ -673,7 +566,7 @@ public class ImagePanel extends JPanel implements LayersListener, ComponentListe
 		}
 		else {
 			this.mouseOverHandle = false;
-			if(brush.getMode() == BrushMode.SELECT) {
+			if(brush.getMode() == BrushMode.EXTRACT) {
 				setCursor(Cursor.getPredefinedCursor(Cursor.CROSSHAIR_CURSOR));
 			}
 			else {
@@ -734,18 +627,19 @@ public class ImagePanel extends JPanel implements LayersListener, ComponentListe
 					g.drawImage(layer.image(), x + w, y + h/2, w, h, null);
 					g.drawImage(layer.image(), x - w, y + h/2, w, h, null);
 				}
-			}
-		}
-		for(Layer layer : layers.getLayers()) {
-			if(layer.shown()) {
-				int x = (int) (zoom*layer.x());
-				int y = (int) (zoom*layer.y());
-				int w = (int) (zoom*layer.w());
-				int h = (int) (zoom*layer.h());
-				g.setColor(layer == layers.active() ? SELECTED_BORDER : TRANSLUCENT_BORDER);
-				g2d.setStroke(layer == layers.active() ? dashed : basicStroke);
+				g.setColor(TRANSLUCENT_BORDER);
+				g2d.setStroke(basicStroke);
 				g.drawRect(x-1, y-1, w+1, h+1);
 			}
+		}
+		if(layers.active().shown()) {
+			int x = (int) (zoom*layers.active().x());
+			int y = (int) (zoom*layers.active().y());
+			int w = (int) (zoom*layers.active().w());
+			int h = (int) (zoom*layers.active().h());
+			g.setColor(SELECTED_BORDER);
+			g2d.setStroke(dashed);
+			g.drawRect(x-1, y-1, w+1, h+1);
 		}
 		g2d.setStroke(basicStroke);
 		
@@ -754,12 +648,18 @@ public class ImagePanel extends JPanel implements LayersListener, ComponentListe
 			Rectangle bounds = inprogressCommand.layer.getBoundsAfterCommand(inprogressCommand);
 			g.drawRect((int) (bounds.x*zoom)-1, (int) (bounds.y*zoom)-1, (int) (bounds.width*zoom)+1, (int) (bounds.height*zoom)+1);
 		}
+		
+		if(extractionStart != null) {
+			g.setColor(Color.red);
+			Rectangle extraction = Utils.makeRectangle(extractionStart, extractionCurrent);
+			g.drawRect((int) (extraction.x*zoom)-1, (int) (extraction.y*zoom)-1, (int) (extraction.width*zoom)+1, (int) (extraction.height*zoom)+1);
+		}
 
 		int indicatorBrushSize = brush.getSize();
-		if(brush.getMode() == BrushMode.SELECT || brush.getMode() == BrushMode.COLOR_PICKER) {
+		if(brush.getMode() == BrushMode.EXTRACT || brush.getMode() == BrushMode.COLOR_PICKER) {
 			indicatorBrushSize = 1;
 		}
-		if(previousMousePosition != null && (brush.getMode() == BrushMode.BRUSH || brush.getMode() == BrushMode.FILL || brush.getMode() == BrushMode.ALL_MATCHING_COLOR || brush.getMode() == BrushMode.COLOR_PICKER || brush.getMode() == BrushMode.SELECT)) {
+		if(previousMousePosition != null && (brush.getMode() == BrushMode.BRUSH || brush.getMode() == BrushMode.FILL || brush.getMode() == BrushMode.ALL_MATCHING_COLOR || brush.getMode() == BrushMode.COLOR_PICKER || brush.getMode() == BrushMode.EXTRACT)) {
 			Vec2i pixelPosition = screenToPixel(previousMousePosition);
 			if(!mouseOverHandle && !movingCamera) {
 				int minx = (int) ((pixelPosition.x - indicatorBrushSize/2) * zoom);

@@ -15,6 +15,13 @@ public class Vec2i {
 	public Vec2i(Point p) {
 		this(p.x, p.y);
 	}
+
+	public Vec2i add(int xx, int yy) {
+		return new Vec2i(x + xx, y + yy);
+	}
+	public Vec2i add(Vec2i other) {
+		return new Vec2i(x + other.x, y + other.y);
+	}
 	
 	public Vec2i subtract(Vec2i other) {
 		return new Vec2i(x - other.x, y - other.y);

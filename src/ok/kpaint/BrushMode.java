@@ -4,7 +4,7 @@ import javax.swing.*;
 
 public enum BrushMode {
 //	MOVE("Move", "(m) Move: use the mouse to move and resize canvas", "resources/move.png"), 
-	SELECT("Select", "(s) Select: draw a rectangle to select a section of the image", "/select.png"), 
+	EXTRACT("Extract", "(s) Extract: draw a rectangle to extract a section of the image into a new layer", "/select.png"), 
 	BRUSH("Brush", "(b) Brush: draw with the mouse", "/brush.png"), 
 	FILL("Fill", "(f) Fill: paints all of the adjacent pixels that have matching color", "/fill.png"), 
 	ALL_MATCHING_COLOR("All Matching Color", "(a) All Matching Color: paints all pixels on the image that match the color", "/color.png"),

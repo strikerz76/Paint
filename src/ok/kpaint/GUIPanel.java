@@ -144,14 +144,6 @@ public class GUIPanel extends JPanel {
 				imagePanelInterface.redo();
 			}
 		});
-		
-//		applyButton = KUI.setupKButton(withTitles ? "Apply Selection" : "", "(Esc) Apply Selection: pastes the floating selection onto the image.", "/apply.png");
-//		applyButton.addActionListener(new ActionListener() {
-//			@Override
-//			public void actionPerformed(ActionEvent e) {
-//				imagePanelInterface.applySelection();
-//			}
-//		});
 
 		toggleTiling = KUI.setupKToggleButton(withTitles ? "Tiling" : "", "Tiling: enables tiling view which draws copies of the image around it for working on seemless textures", "/tiling_icon.png");
 		toggleTiling.addActionListener(e -> {
@@ -269,7 +261,7 @@ public class GUIPanel extends JPanel {
 		this.add(getSeparator(sepHeight, sepColor), c);
 		c.weighty = 0;
 		c.gridx = 0; c.gridy = row++;
-		this.add(modeButtons.get(BrushMode.SELECT), c);
+		this.add(modeButtons.get(BrushMode.EXTRACT), c);
 //		c.gridx = 0; c.gridy = row++;
 //		this.add(applyButton, c);
 		c.gridwidth = 1;
@@ -355,7 +347,7 @@ public class GUIPanel extends JPanel {
 		
 		// ############ ROW 2 ################## 
 		c.gridx = 0; c.gridy = 2;
-		this.add(modeButtons.get(BrushMode.SELECT), c);
+		this.add(modeButtons.get(BrushMode.EXTRACT), c);
 //		c.gridx = 1; c.gridy = 2;
 //		this.add(applyButton, c);
 		c.gridx = 2; c.gridy = 2;

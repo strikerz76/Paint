@@ -4,7 +4,6 @@ Easy image editing application with a layers feature.
 
 TODO:
 	REQUIRED:
-		- ability to draw selection rectangle to extract that into new layer
 		- undo/redo on drawing as well as move/resize/stretch actions
 	
 	OPTIONAL:
