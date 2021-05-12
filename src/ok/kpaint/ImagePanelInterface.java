@@ -15,6 +15,7 @@ public interface ImagePanelInterface {
 	public void pasteFromClipboard();
 
 	public void showTiling(boolean enabled);
+	public void enableDarkMode(boolean enabled);
 
 	public Color getMainColor();
 	public Color getAltColor();

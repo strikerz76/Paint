@@ -25,6 +25,7 @@ public class GUIPanel extends JPanel {
 	private KButton redoButton;
 //	private KButton applyButton;
 	private JToggleButton toggleTiling;
+	private JToggleButton toggleDarkMode;
 	private KSlider brushSize2;
 	private JButton brushColor1;
 	private JButton brushColor2;
@@ -156,7 +157,14 @@ public class GUIPanel extends JPanel {
 		toggleTiling.addActionListener(e -> {
 			imagePanelInterface.showTiling(toggleTiling.isSelected());
 		});
-
+		
+		toggleDarkMode = KUI.setupKToggleButton(withTitles ? "Dark Mode" : "", "Toggles dark/light canvas background.", "/darkmode.png");
+		toggleDarkMode.addActionListener(e -> {
+			imagePanelInterface.enableDarkMode(toggleDarkMode.isSelected());
+		});
+		toggleDarkMode.setSelected(true);
+		imagePanelInterface.enableDarkMode(true);
+		
 		brushSize2 = new KSlider(1, 20);
 		brushSize2.setValue(Brush.DEFAULT_BRUSH.getSize());
 		brushSize2.addChangeListener(e -> {
@@ -264,8 +272,12 @@ public class GUIPanel extends JPanel {
 		this.add(modeButtons.get(BrushMode.SELECT), c);
 //		c.gridx = 0; c.gridy = row++;
 //		this.add(applyButton, c);
-		c.gridx = 0; c.gridy = row++;
+		c.gridwidth = 1;
+		c.gridx = 0; c.gridy = row;
 		this.add(toggleTiling, c);
+		c.gridx = 1; c.gridy = row++;
+		this.add(toggleDarkMode, c);
+		c.gridwidth = 2;
 		
 		// ############ ROW 3 ################## 
 		c.gridx = 0; c.gridy = row++; c.weighty = 1;

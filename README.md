@@ -5,10 +5,12 @@ Easy image editing application with a layers feature.
 TODO:
 	REQUIRED:
 		- ability to draw selection rectangle to extract that into new layer
-		- ability to choose background
 		- undo/redo on drawing as well as move/resize/stretch actions
 	
 	OPTIONAL:
+		- add settings menu
+			- tiling
+			- background
 		- add rotation handle
 		- hold ctrl to force axis-aligned move or to maintain aspect ratio
 		- right click menu (on the canvas and pick the first layer it overlaps)

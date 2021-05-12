@@ -44,7 +44,7 @@ public class LayersPanel implements LayersListener {
 		GridBagConstraints c = new GridBagConstraints();
 		int row = 0;
 
-		addLayerButton = new JButton("new layer");
+		addLayerButton = new JButton("new layer", Utils.resizeImageIcon(Utils.loadImageIconResource("/new_canvas.png"), 16, 16));
 		addLayerButton.setFocusable(false);
 		addLayerButton.addActionListener(e -> {
 			Vec2i newLayerSize = Utils.queryNewLayerSize(addLayerButton,

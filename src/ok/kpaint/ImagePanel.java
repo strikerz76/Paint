@@ -1,7 +1,6 @@
 package ok.kpaint;
 import java.awt.*;
 import java.awt.event.*;
-import java.awt.geom.*;
 import java.awt.image.*;
 import java.util.*;
 import java.util.Map.*;
@@ -16,9 +15,8 @@ public class ImagePanel extends JPanel implements LayersListener, ComponentListe
 	
 	private static final Color TRANSLUCENT_BORDER = new Color(255, 255, 255, 100);
 	private static final Color SELECTED_BORDER = new Color(255, 255, 255, 150);
+//	private static final Cursor colorPickerCursor = Toolkit.getDefaultToolkit().createCustomCursor(Utils.loadImage("/color_picker.png"), new Point(0, 0), "colorpicker");
 	
-	private boolean DARK_MODE = false;
-	BufferedImage background = Utils.makeBackgroundImage(getWidth(), getHeight(), DARK_MODE);
 	
 	private LinkedList<String> infoStrings = new LinkedList<>();
 
@@ -35,8 +33,10 @@ public class ImagePanel extends JPanel implements LayersListener, ComponentListe
 	private Brush brush = new Brush(Brush.DEFAULT_BRUSH);
 	private Color altColor = new Color(0, 0, 0, 0);
 	private Layers layers;
+	private BufferedImage background;
 	
 	private boolean showTiling;
+	private boolean darkMode;
 	
 	private GUIInterface guiInterface;
 	private ControllerInterface controllerInterface;
@@ -106,6 +106,11 @@ public class ImagePanel extends JPanel implements LayersListener, ComponentListe
 			showTiling = enabled;
 		}
 		@Override
+		public void enableDarkMode(boolean enabled) {
+			darkMode = enabled;
+			updateBackground();
+		}
+		@Override
 		public void setBrushSize(int size) {
 			brush.setSize(size);
 			repaint();
@@ -124,6 +129,7 @@ public class ImagePanel extends JPanel implements LayersListener, ComponentListe
 		return ipInterface;
 	}
 	public ImagePanel(Layers layers) {
+		updateBackground();
 		this.layers = layers;
 		layers.addListener(this);
 		this.addComponentListener(this);
@@ -331,7 +337,7 @@ public class ImagePanel extends JPanel implements LayersListener, ComponentListe
 	@Override
 	public void componentResized(ComponentEvent e) {
 		if(background.getWidth() != getWidth() || background.getHeight() != getHeight()) {
-			background = Utils.makeBackgroundImage(getWidth(), getHeight(), DARK_MODE);
+			updateBackground();
 		}
 	}
 	@Override
@@ -345,6 +351,10 @@ public class ImagePanel extends JPanel implements LayersListener, ComponentListe
 	@Override
 	public void componentHidden(ComponentEvent e) {
 		
+	}
+	
+	private void updateBackground() {
+		background = Utils.makeBackgroundImage(getWidth(), getHeight(), darkMode);
 	}
 	
 	private void startMovingCanvas(Vec2i mousePosition) {
@@ -632,7 +642,7 @@ public class ImagePanel extends JPanel implements LayersListener, ComponentListe
 		int distance = 10;
 		int offset = padding + radius;
 		handles.put(Handle.MOVE_NORTH, new Vec2i((boundedCenter.x + activeScreenTopLeft.x)/2, activeScreenTopLeft.y - distance - radius));
-		handles.put(Handle.MOVE_SOUTH, new Vec2i((boundedCenter.x + activeScreenBotRight.x)/2, activeScreenBotRight.y + distance + radius));
+		handles.put(Handle.MOVE_SOUTH, new Vec2i(activeScreenBotRight.x + distance + radius, (boundedCenter.y + activeScreenBotRight.y)/2));
 		
 		handles.put(Handle.RESIZE_NORTH, new Vec2i(boundedCenter.x - offset, activeScreenTopLeft.y - distance - radius));
 		handles.put(Handle.RESIZE_SOUTH, new Vec2i(boundedCenter.x - offset, activeScreenBotRight.y + distance + radius));
