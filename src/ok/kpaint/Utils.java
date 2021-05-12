@@ -219,6 +219,10 @@ public class Utils {
 		return null;
 	}
 	
+	public static final boolean isTransparent(int argb) {
+		return (argb & 0xFF000000) == 0;
+	}
+	
 	public static final Rectangle makeRectangle(Vec2i one, Vec2i two) {
 		Vec2i min = new Vec2i(Math.min(one.x, two.x), Math.min(one.y, two.y));
 		Vec2i max = new Vec2i(Math.max(one.x, two.x), Math.max(one.y, two.y));

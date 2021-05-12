@@ -237,9 +237,11 @@ public class ImagePanel extends JPanel implements LayersListener, ComponentListe
 						finishMovingCanvas();
 					}
 					else {
-						// TODO scan to see which layer was right clicked
-						LayerContextMenu contextMenu = new LayerContextMenu(layers, layers.active());
-						contextMenu.show(ImagePanel.this, e.getX(), e.getY());
+						Layer layer = layers.hitScan(screenToPixel(mousePos));
+						if(layer != null) {
+							LayerContextMenu contextMenu = new LayerContextMenu(layers, layer);
+							contextMenu.show(ImagePanel.this, e.getX(), e.getY());
+						}
 					}
 				}
 				else {

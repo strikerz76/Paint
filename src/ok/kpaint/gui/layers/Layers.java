@@ -35,6 +35,22 @@ public class Layers {
 		return active;
 	}
 	
+	public Layer hitScan(Vec2i pixel) {
+		Layer found = null;
+		Layer foundTransparent = null;
+		for(Layer layer : layers) {
+			if(layer.shown()
+					&& layer.bounds().contains(pixel.x, pixel.y) ) {
+				int rgb = layer.image().getRGB(pixel.x - layer.x(), pixel.y - layer.y());
+				if(!Utils.isTransparent(rgb)) {
+					found = layer;
+				}
+				foundTransparent = layer;
+			}
+		}
+		return found == null ? foundTransparent : found;
+	}
+	
 	public Rectangle getBoundingRect() {
 		if(layers.isEmpty()) {
 			return new Rectangle(0, 0, 1, 1);

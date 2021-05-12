@@ -12,7 +12,7 @@ TODO:
 			- background
 		- add rotation handle
 		- hold ctrl to force axis-aligned move or to maintain aspect ratio
-		- right click menu (on the canvas and pick the first layer it overlaps)
+		- right click menu
 			- hide other layers
 			- stretch layer to size
 		- LayersPanel
