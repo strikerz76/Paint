@@ -2,6 +2,7 @@ package ok.kpaint.gui.layers;
 
 import java.awt.*;
 import java.awt.event.*;
+import java.awt.image.*;
 import java.util.*;
 
 import javax.swing.*;
@@ -46,7 +47,12 @@ public class LayersPanel implements LayersListener {
 		addLayerButton = new JButton("new layer");
 		addLayerButton.setFocusable(false);
 		addLayerButton.addActionListener(e -> {
-			layers.add();
+			Vec2i newLayerSize = Utils.queryNewLayerSize(addLayerButton,
+			                                             new Vec2i(layers.active().w(), layers.active().h()));
+			if(newLayerSize != null) {
+				BufferedImage newImage = new BufferedImage(newLayerSize.x, newLayerSize.y, BufferedImage.TYPE_4BYTE_ABGR);
+				layers.add(newImage);
+			}
 		});
 		c.gridx = 0; c.gridy = row++; c.weightx = 1;;
 		panel.add(addLayerButton, c);

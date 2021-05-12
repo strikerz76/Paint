@@ -94,29 +94,11 @@ public class ImagePanel extends JPanel implements LayersListener, ComponentListe
 		}
 		@Override
 		public void newCanvas() {
-			JPanel chooseSize = new JPanel();
-			chooseSize.add(new JLabel("Width:"));
-			JTextField widthField = new JTextField("" + getCurrentImage().getWidth(), 6);
-			chooseSize.add(widthField);
-			chooseSize.add(new JLabel("Height:"));
-			JTextField heightField = new JTextField("" + getCurrentImage().getHeight(), 6);
-			chooseSize.add(heightField);
-			for(Component c : chooseSize.getComponents()) {
-				c.setFont(DriverKPaint.MAIN_FONT);
-			}
-			int result = JOptionPane.showConfirmDialog(ImagePanel.this, chooseSize, "New Canvas", JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE);
-			if(result == JOptionPane.OK_OPTION) {
-				try {
-					int width = Integer.parseInt(widthField.getText());
-					int height = Integer.parseInt(heightField.getText());
-					BufferedImage newImage = new BufferedImage(width, height, BufferedImage.TYPE_4BYTE_ABGR);
-					layers.add(newImage);
-				}
-				catch(NumberFormatException e) {
-					JLabel l = new JLabel("Width and height must be integers.");
-					l.setFont(DriverKPaint.MAIN_FONT);
-					JOptionPane.showMessageDialog(ImagePanel.this, l, "Error", JOptionPane.ERROR_MESSAGE);
-				}
+			Vec2i newLayerSize = Utils.queryNewLayerSize(ImagePanel.this,
+			                                             new Vec2i(layers.active().w(), layers.active().h()));
+			if(newLayerSize != null) {
+				BufferedImage newImage = new BufferedImage(newLayerSize.x, newLayerSize.y, BufferedImage.TYPE_4BYTE_ABGR);
+				layers.add(newImage);
 			}
 		}
 		@Override
@@ -625,26 +607,6 @@ public class ImagePanel extends JPanel implements LayersListener, ComponentListe
 		neighbors.add(new Vec2i(pixel.x, pixel.y - 1));
 		neighbors.add(new Vec2i(pixel.x, pixel.y + 1));
 		return neighbors;
-	}
-	
-
-	private void matchColorDraw(Point lowerBound, Point upperBound, Color setTo) {
-//		HashSet<Integer> colors = new HashSet<>();
-//		for(int i = lowerBound.x; i <= upperBound.x; i++) {
-//			for(int j = lowerBound.y; j <= upperBound.y; j++) {
-//				colors.add(history.getCurrent().getRGB(i, j));
-//			}
-//		}
-//		if(colors.isEmpty()) {
-//			return;
-//		}
-//		for (int i = 0; i < history.getCurrent().getWidth(); i++) {
-//			for (int j = 0; j < history.getCurrent().getHeight(); j++) {
-//				if(colors.contains(history.getCurrent().getRGB(i, j))) {
-//					history.getCurrent().setRGB(i, j, setTo.getRGB());
-//				}
-//			}
-//		}
 	}
 	
 	public Color getMainColor() {

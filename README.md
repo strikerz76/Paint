@@ -7,6 +7,7 @@ TODO:
 		- ability to draw selection rectangle to extract that into new layer
 		- ability to choose background
 		- undo/redo on drawing as well as move/resize/stretch actions
+		- fix color picker
 	
 	OPTIONAL:
 		- add rotation handle

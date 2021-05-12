@@ -55,6 +55,7 @@ public class DriverKPaint {
 		};
 		
 		frame = new JFrame(TITLE);
+		frame.setBackground(Color.black);
 		frame.setSize((int)(Toolkit.getDefaultToolkit().getScreenSize().width*0.9), (int)(Toolkit.getDefaultToolkit().getScreenSize().height*0.9));
 		frame.setMinimumSize(new Dimension(670, 500));
 		frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
@@ -62,14 +63,16 @@ public class DriverKPaint {
 
 		frame.setIconImage(Utils.loadImageIconResource("/icon.png").getImage());
 		frame.setVisible(true);
+		frame.repaint();
 		
 		imagePanel = new ImagePanel(layers);
+		imagePanel.setBackground(Color.black);
 		
-		GUIPanel guiPanel;
+		;
 		frame.add(imagePanel, BorderLayout.CENTER);
 		imagePanelInterface = imagePanel.getInterface();
 		
-		guiPanel = new GUIPanel(controllerInterface, imagePanelInterface, layers);
+		GUIPanel guiPanel = new GUIPanel(controllerInterface, imagePanelInterface, layers);
 		guiInterface = guiPanel.getInterface();
 		guiInterface.switchLayout(true);
 		frame.add(guiPanel, BorderLayout.WEST);

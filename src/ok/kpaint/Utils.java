@@ -191,4 +191,33 @@ public class Utils {
 		g.dispose();
 		return background;
 	}
+	
+	public static final Vec2i queryNewLayerSize(Component component, Vec2i defaultSize) {
+		JPanel chooseSize = new JPanel();
+		chooseSize.add(new JLabel("Width:"));
+		JTextField widthField = new JTextField("" + defaultSize.x, 6);
+		chooseSize.add(widthField);
+		chooseSize.add(new JLabel("Height:"));
+		JTextField heightField = new JTextField("" + defaultSize.y, 6);
+		chooseSize.add(heightField);
+		for(Component c : chooseSize.getComponents()) {
+			c.setFont(DriverKPaint.MAIN_FONT);
+		}
+		int result = JOptionPane.showConfirmDialog(component, chooseSize, "New Layer", JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE);
+		if(result == JOptionPane.OK_OPTION) {
+			try {
+				int width = Integer.parseInt(widthField.getText());
+				int height = Integer.parseInt(heightField.getText());
+				return new Vec2i(width, height);
+//				BufferedImage newImage = new BufferedImage(width, height, BufferedImage.TYPE_4BYTE_ABGR);
+//				layers.add(newImage);
+			}
+			catch(NumberFormatException e) {
+				JLabel l = new JLabel("Width and height must be integers.");
+				l.setFont(DriverKPaint.MAIN_FONT);
+				JOptionPane.showMessageDialog(component, l, "Error", JOptionPane.ERROR_MESSAGE);
+			}
+		}
+		return null;
+	}
 }
